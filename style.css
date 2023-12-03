@@ -1,0 +1,10 @@
+body,input,textarea,select{font:1em "Source Code Pro",monospace}
+canvas{position:absolute;left:0;right:0;top:0;bottom:0;}
+
+#controls{position:absolute;z-index:100;color:white;}
+#controls input[type=range]{background:none;}
+#controls input[type=number]{width:3em}
+
+label{display:block}
+
+.dg.ac{z-index:100!important}
