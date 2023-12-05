@@ -126,54 +126,125 @@ renderer.autoClearColor = true;
 renderer.setClearColor( 0xffffff );
 
       // Create atoms (spheres)
-      const createAtom = (x, y, z, color, radius) => {
-        const geometry = new THREE.SphereGeometry(radius, 32, 32);
-        const material = new THREE.MeshPhongMaterial({ color });
-        const sphere = new THREE.Mesh(geometry, material);
-        sphere.position.set(x, y, z);
-        scene.add(sphere);
-      };
+    //   const createSphere = (x, y, z, color, radius) => {
+    //     const geometry = new THREE.SphereGeometry(radius, 32, 32);
+    //     const material = new THREE.MeshPhongMaterial({ color });
+    //     const sphere = new THREE.Mesh(geometry, material);
+    //     sphere.position.set(x, y, z);
+    //     scene.add(sphere);
+    //   };
 
-      function getRandomInt(min, max) {
-        // The Math.floor() function returns the largest integer less than or equal to a given number.
-        // The Math.random() function returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-      }
+    //   function getRandomInt(min, max) {
+    //     // The Math.floor() function returns the largest integer less than or equal to a given number.
+    //     // The Math.random() function returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
+    //     return Math.floor(Math.random() * (max - min + 1)) + min;
+    //   }
 
       
-      const createMolecule = (n, color1, color2, radius) => {
-        for (let i = 0; i < n-2; i++)
-        {
-            let y = -200 + i * 200;
-            let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
-            createAtom(0, y, 0, color, radius);
-        }
+    //   const createAtom = (n, color1, color2, radius) => {
+    //     for (let i = 0; i < n-2; i++)
+    //     {
+    //         let y = -200 + i * 200;
+    //         let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
+    //         createSphere(0, y, 0, color, radius);
+    //     }
 
-        for (let i = 0; i < n+3; i++) {
-            const angle = (i / (n+3)) * Math.PI * 2;
+    //     for (let i = 0; i < n+3; i++) {
+    //         const angle = (i / (n+3)) * Math.PI * 2;
+    //         const x = Math.cos(angle) * 200;
+    //         const z = Math.sin(angle) * 200;
+    //         let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
+    //         createSphere(x, 0, z, color, radius);
+    //     }
+    //     for (let i = 0; i < n; i++) {
+    //         const angle = (i / n) * Math.PI * 2;
+    //         const x = Math.cos(angle) * 150;
+    //         const z = Math.sin(angle) * 150;
+    //         let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
+    //         createSphere(x, 135, z, color, radius);
+    //     }
+    //     for (let i = 0; i < n; i++) {
+    //         const angle = (i / n) * Math.PI * 2;
+    //         const x = Math.cos(angle) * 150;
+    //         const z = Math.sin(angle) * 150;
+    //         let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
+    //         createSphere(x, -135, z, color, radius);
+    //     }
+    //   };
+      
+      
+      //createAtom(5, 0xff0000, 0x0000ff, 100);
+
+
+      class Atom {
+        constructor(scene, color1, color2) {
+          this.scene = scene;
+          this.color1 = color1;
+          this.color2 = color2;
+      
+          this.spheres = [];
+      
+          this.createAtom();
+        }
+      
+        createSphere(x, y, z, color) {
+          const geometry = new THREE.SphereGeometry(100, 32, 32);
+          const material = new THREE.MeshPhongMaterial({ color });
+          const sphere = new THREE.Mesh(geometry, material);
+          sphere.position.set(x, y, z);
+          this.scene.add(sphere);
+          this.spheres.push(sphere);
+        }
+      
+        getRandomInt(min, max) {
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+      
+        createAtom() {
+          for (let i = 0; i < 3; i++) {
+            let y = -200 + i * 200;
+            let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+            this.createSphere(0, y, 0, color);
+          }
+      
+          for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
             const x = Math.cos(angle) * 200;
             const z = Math.sin(angle) * 200;
-            let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
-            createAtom(x, 0, z, color, radius);
-        }
-        for (let i = 0; i < n; i++) {
-            const angle = (i / n) * Math.PI * 2;
+            let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+            this.createSphere(x, 0, z, color);
+          }
+      
+          // Add other spheres and their positions here...
+      
+          for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2;
             const x = Math.cos(angle) * 150;
             const z = Math.sin(angle) * 150;
-            let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
-            createAtom(x, 135, z, color, radius);
-        }
-        for (let i = 0; i < n; i++) {
-            const angle = (i / n) * Math.PI * 2;
+            let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+            this.createSphere(x, 135, z, color);
+          }
+      
+          for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2;
             const x = Math.cos(angle) * 150;
             const z = Math.sin(angle) * 150;
-            let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
-            createAtom(x, -135, z, color, radius);
+            let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+            this.createSphere(x, -135, z, color);
+          }
         }
-      };
       
+        // Add other methods for moving spheres or any other functionality...
       
-      createMolecule(5, 0xff0000, 0x0000ff, 100);
+        moveSphere(index, x, y, z) {
+          if (index >= 0 && index < this.spheres.length) {
+            this.spheres[index].position.set(x, y, z);
+          }
+        }
+      }
+      
+
+      const atom = new Atom(scene, 0xff0000, 0x0000ff);
 
 //renderer.shadowMapEnabled=true;
 document.body.appendChild(renderer.domElement);
@@ -515,8 +586,6 @@ function reset() {
 function random(min, max) {
     return Math.random() * (max - min) + min;
 }
-
-
 
 
 /* MOVER CLASS */
