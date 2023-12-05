@@ -121,12 +121,19 @@ var lineMaterial = new THREE.LineBasicMaterial({
 scene.castShadow=true;
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.autoClearColor = true;
+
+// Add renderer to set color to white
+renderer.setClearColor( 0xffffff );
+
+
+
 //renderer.shadowMapEnabled=true;
 document.body.appendChild(renderer.domElement);
-//var geometry = new THREE.SphereGeometry(1.0,8,8);
-//cube = new THREE.Mesh(geometry, material);
-//scene.add(cube);
-var cube;
+
+// var geometry = new THREE.SphereGeometry(1.0,8,8);
+// cube = new THREE.Mesh(geometry, material);
+// scene.add(cube);
+// var cube;
 
 
 var basicMaterial =  new THREE.MeshLambertMaterial({
@@ -141,9 +148,9 @@ var selectedMaterial =  new THREE.MeshLambertMaterial({
 var ambientLight = new THREE.AmbientLight(0x222222);
 scene.add(ambientLight);
 
-//var selectionLight = new THREE.PointLight(0xff0000,0);
-//selectionLight.castShadow = true;
-//scene.add(selectionLight);
+// var selectionLight = new THREE.PointLight(0xff0000,0);
+// selectionLight.castShadow = true;
+// scene.add(selectionLight);
 
 var redLight = new THREE.DirectionalLight(0xff9922);
 redLight.position.set(1, 2, 0);
@@ -153,9 +160,9 @@ var blueLight = new THREE.DirectionalLight(0x2288ff);
 blueLight.position.set(0,-1, -1);
 scene.add(blueLight);
 
-//var greenLight = new THREE.DirectionalLight(0x00aa00);
-//greenLight.position.set(0, 1, 1);
-//scene.add(greenLight);
+// var greenLight = new THREE.DirectionalLight(0x00aa00);
+// greenLight.position.set(0, 1, 1);
+// scene.add(greenLight);
 
 var $real_framerate = $("#real_framerate");
 var $framerate = $("#framerate");
@@ -185,6 +192,7 @@ function draw() {
 draw();
 
 function render(dt) {
+
     var timeNow = new Date();
     if(lastTimeCalled && timeNow.getMilliseconds() < lastTimeCalled.getMilliseconds()){
         $real_framerate.html(countFramesPerSecond);
