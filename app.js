@@ -2,7 +2,7 @@ var options = {
     framerate:60,
     G:10,
     START_SPEED:0,
-    MOVER_COUNT:100,
+    MOVER_COUNT:10,
     TRAILS_DISPLAY:false,
     TRAILS_LENGTH:200,
     MIN_MASS:100,
@@ -18,7 +18,7 @@ options.RestoreDefaults = function() {
     framerate:60,
     G:10,
     START_SPEED:0,
-    MOVER_COUNT:100,
+    MOVER_COUNT:10,
     TRAILS_DISPLAY:false,
     TRAILS_LENGTH:200,
     MIN_MASS:100,
@@ -97,6 +97,7 @@ var zoom = 1.0;
 var translate = new THREE.Vector3();
 
 var movers = [];
+var atoms = [];
 var now;
 var then = Date.now();
 var renderInterval = 1000/parseInt(options.framerate);
@@ -175,26 +176,38 @@ renderer.setClearColor( 0xffffff );
       
       //createAtom(5, 0xff0000, 0x0000ff, 100);
 
-
-      class Atom {
-        constructor(scene, color1, color2) {
+      class Sphere {
+        constructor(scene, x, y, z, color) {
           this.scene = scene;
-          this.color1 = color1;
-          this.color2 = color2;
+          this.geometry = new THREE.SphereGeometry(100, 32, 32);
+          this.material = new THREE.MeshPhongMaterial({ color });
+          this.mesh = new THREE.Mesh(this.geometry, this.material);
+          this.mesh.position.set(x, y, z);
+          this.scene.add(this.mesh);
+        }
       
-          this.spheres = [];
+        delete() {
+          this.scene.remove(this.mesh);
+        }
+      }
       
-          this.createAtom();
+
+class Atom {
+        constructor(color1, color2, loc) {
+            this.location = loc;
+            this.scene = scene;
+            this.color1 = color1;
+            this.color2 = color2;
+        
+            this.spheres = [];
+        
+            this.createAtom();
         }
       
         createSphere(x, y, z, color) {
-          const geometry = new THREE.SphereGeometry(100, 32, 32);
-          const material = new THREE.MeshPhongMaterial({ color });
-          const sphere = new THREE.Mesh(geometry, material);
-          sphere.position.set(x, y, z);
-          this.scene.add(sphere);
-          this.spheres.push(sphere);
-        }
+            const sphere = new Sphere(this.scene, x, y, z, color);
+            this.spheres.push(sphere);
+          }
       
         getRandomInt(min, max) {
           return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -204,7 +217,7 @@ renderer.setClearColor( 0xffffff );
           for (let i = 0; i < 3; i++) {
             let y = -200 + i * 200;
             let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
-            this.createSphere(0, y, 0, color);
+            this.createSphere(this.location.x, this.location.y + y, this.location.z, color);
           }
       
           for (let i = 0; i < 8; i++) {
@@ -212,7 +225,7 @@ renderer.setClearColor( 0xffffff );
             const x = Math.cos(angle) * 200;
             const z = Math.sin(angle) * 200;
             let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
-            this.createSphere(x, 0, z, color);
+            this.createSphere(this.location.x + x, this.location.y, this.location.z + z, color);
           }
       
           // Add other spheres and their positions here...
@@ -222,7 +235,7 @@ renderer.setClearColor( 0xffffff );
             const x = Math.cos(angle) * 150;
             const z = Math.sin(angle) * 150;
             let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
-            this.createSphere(x, 135, z, color);
+            this.createSphere(this.location.x + x, this.location.y + 135, this.location.z + z, color);
           }
       
           for (let i = 0; i < 5; i++) {
@@ -230,7 +243,7 @@ renderer.setClearColor( 0xffffff );
             const x = Math.cos(angle) * 150;
             const z = Math.sin(angle) * 150;
             let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
-            this.createSphere(x, -135, z, color);
+            this.createSphere(this.location.x + x, this.location.y - 135, this.location.z + z, color);
           }
         }
       
@@ -238,13 +251,13 @@ renderer.setClearColor( 0xffffff );
       
         moveSphere(index, x, y, z) {
           if (index >= 0 && index < this.spheres.length) {
-            this.spheres[index].position.set(x, y, z);
+            this.spheres[index].position.set(this.location.x, this.location.y, this.location.z);
           }
         }
       }
       
 
-      const atom = new Atom(scene, 0xff0000, 0x0000ff);
+    //   const atom = new Atom(scene, 0xff0000, 0x0000ff);
 
 //renderer.shadowMapEnabled=true;
 document.body.appendChild(renderer.domElement);
@@ -545,10 +558,8 @@ window.addEventListener("keyup", function(e) {
         holdDown = false;
     }
 });
-/* UNIVERSE */
-// The Nature of Code
-// Daniel Shiffman
-// http://natureofcode.com
+
+
 function reset() {
     if (movers) {
         for (var i=0;i<movers.length;i=i+1) {
@@ -557,8 +568,22 @@ function reset() {
             scene.remove(movers[i].line);
         }
     }
-  
+
+    // if there is atom, delete all mesh
+    if (atoms) {
+        // console.log("hello");
+        // console.log(atoms.length);
+        for (var i = 0; i < atoms.length; i = i + 1) {
+          let spheres = atoms[i].spheres;
+         // console.log(spheres);
+          for (var j = 0; j < spheres.length; j = j + 1) {
+            spheres[j].delete(); // Corrected the loop variable and method invocation
+          }
+        }
+      }
+      
     movers = [];
+    atoms = [];
     translate.x = 0.0;
     translate.y = 0.0;
     translate.z = 0.0;
@@ -566,6 +591,7 @@ function reset() {
   //alert(options.MOVER_COUNT)
     // generate N movers with random mass (N = MOVER_COUNT)
     for (var i=0;i<parseInt(options.MOVER_COUNT);i=i+1) {
+        //console.log(parseInt(options.MOVER_COUNT));
         var mass = random(options.MIN_MASS,options.MAX_MASS);
 
         var max_distance = parseFloat(1000 / options.DENSITY);
@@ -576,7 +602,8 @@ function reset() {
         //var vel = new THREE.Vector3();
         var loc = new THREE.Vector3(random(-max_distance,max_distance),random(-max_distance,max_distance),random(-max_distance,max_distance));
 
-        // uncomment agar bisa liat movement
+        // Push Atom 
+        atoms.push(new Atom(0xff0000, 0x0000ff, loc));
         //movers.push(new Mover(mass,vel,loc));
     }
 
