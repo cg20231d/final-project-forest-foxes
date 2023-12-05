@@ -176,20 +176,20 @@ renderer.setClearColor( 0xffffff );
       
       //createAtom(5, 0xff0000, 0x0000ff, 100);
 
-      class Sphere {
-        constructor(scene, x, y, z, color) {
-          this.scene = scene;
-          this.geometry = new THREE.SphereGeometry(100, 32, 32);
-          this.material = new THREE.MeshPhongMaterial({ color });
-          this.mesh = new THREE.Mesh(this.geometry, this.material);
-          this.mesh.position.set(x, y, z);
-          this.scene.add(this.mesh);
-        }
-      
-        delete() {
-          this.scene.remove(this.mesh);
-        }
-      }
+class Sphere {
+constructor(scene, x, y, z, color) {
+    this.scene = scene;
+    this.geometry = new THREE.SphereGeometry(100, 32, 32);
+    this.material = new THREE.MeshPhongMaterial({ color });
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
+    this.mesh.position.set(x, y, z);
+    this.scene.add(this.mesh);
+}
+
+delete() {
+    this.scene.remove(this.mesh);
+}
+}
       
 
 class Atom {
@@ -246,8 +246,37 @@ class Atom {
             this.createSphere(this.location.x + x, this.location.y - 135, this.location.z + z, color);
           }
         }
-      
-        // Add other methods for moving spheres or any other functionality...
+
+        shakeAtom() {
+            const shakeIntensity = 5; // Adjust the intensity of the shake as needed
+            for (let i = 0; i < this.spheres.length; i++) {
+                //console.log("hello");
+              const sphere = this.spheres[i];
+              const offsetX = (Math.random() - 0.5) * shakeIntensity;
+              const offsetY = (Math.random() - 0.5) * shakeIntensity;
+              const offsetZ = (Math.random() - 0.5) * shakeIntensity;
+        
+              const newPosition = new THREE.Vector3(
+                sphere.mesh.position.x + offsetX,
+                sphere.mesh.position.y + offsetY,
+                sphere.mesh.position.z + offsetZ
+              );
+        
+              sphere.mesh.position.copy(newPosition);
+            }
+          }
+        
+          startInfiniteShake(intervalTime) {
+            //console.log("im here");
+            this.infiniteShakeInterval = setInterval(() => {
+              this.shakeAtom();
+            }, intervalTime);
+          }
+        
+          stopInfiniteShake() {
+            clearInterval(this.infiniteShakeInterval);
+          }
+        
       
         moveSphere(index, x, y, z) {
           if (index >= 0 && index < this.spheres.length) {
@@ -257,7 +286,10 @@ class Atom {
       }
       
 
-    //   const atom = new Atom(scene, 0xff0000, 0x0000ff);
+      // Untuk Testing yang aslinya di reset()
+    //     var loc = new THREE.Vector3(0,0,0);
+    //    const atom = new Atom(0xff0000, 0x0000ff, loc);
+    //    atom.startInfiniteShake(5);
 
 //renderer.shadowMapEnabled=true;
 document.body.appendChild(renderer.domElement);
@@ -588,7 +620,7 @@ function reset() {
     translate.y = 0.0;
     translate.z = 0.0;
 
-  //alert(options.MOVER_COUNT)
+    // INI FUNGSI UNTUK GENERATE SEMUA ATOMNYA UNCOMMENT YANG PUSH ATOM
     // generate N movers with random mass (N = MOVER_COUNT)
     for (var i=0;i<parseInt(options.MOVER_COUNT);i=i+1) {
         //console.log(parseInt(options.MOVER_COUNT));
