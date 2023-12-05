@@ -125,7 +125,55 @@ renderer.autoClearColor = true;
 // Add renderer to set color to white
 renderer.setClearColor( 0xffffff );
 
+      // Create atoms (spheres)
+      const createAtom = (x, y, z, color, radius) => {
+        const geometry = new THREE.SphereGeometry(radius, 32, 32);
+        const material = new THREE.MeshPhongMaterial({ color });
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set(x, y, z);
+        scene.add(sphere);
+      };
 
+      function getRandomInt(min, max) {
+        // The Math.floor() function returns the largest integer less than or equal to a given number.
+        // The Math.random() function returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      
+      const createMolecule = (n, color1, color2, radius) => {
+        for (let i = 0; i < n-2; i++)
+        {
+            let y = -200 + i * 200;
+            let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
+            createAtom(0, y, 0, color, radius);
+        }
+
+        for (let i = 0; i < n+3; i++) {
+            const angle = (i / (n+3)) * Math.PI * 2;
+            const x = Math.cos(angle) * 200;
+            const z = Math.sin(angle) * 200;
+            let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
+            createAtom(x, 0, z, color, radius);
+        }
+        for (let i = 0; i < n; i++) {
+            const angle = (i / n) * Math.PI * 2;
+            const x = Math.cos(angle) * 150;
+            const z = Math.sin(angle) * 150;
+            let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
+            createAtom(x, 135, z, color, radius);
+        }
+        for (let i = 0; i < n; i++) {
+            const angle = (i / n) * Math.PI * 2;
+            const x = Math.cos(angle) * 150;
+            const z = Math.sin(angle) * 150;
+            let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
+            createAtom(x, -135, z, color, radius);
+        }
+      };
+      
+      
+      createMolecule(5, 0xff0000, 0x0000ff, 100);
 
 //renderer.shadowMapEnabled=true;
 document.body.appendChild(renderer.domElement);
@@ -156,13 +204,14 @@ var redLight = new THREE.DirectionalLight(0xff9922);
 redLight.position.set(1, 2, 0);
 scene.add(redLight);
 
+
 var blueLight = new THREE.DirectionalLight(0x2288ff);
 blueLight.position.set(0,-1, -1);
 scene.add(blueLight);
 
-// var greenLight = new THREE.DirectionalLight(0x00aa00);
-// greenLight.position.set(0, 1, 1);
-// scene.add(greenLight);
+var greenLight = new THREE.DirectionalLight(0x00aa00);
+greenLight.position.set(0, 1, 1);
+scene.add(greenLight);
 
 var $real_framerate = $("#real_framerate");
 var $framerate = $("#framerate");
@@ -456,7 +505,8 @@ function reset() {
         //var vel = new THREE.Vector3();
         var loc = new THREE.Vector3(random(-max_distance,max_distance),random(-max_distance,max_distance),random(-max_distance,max_distance));
 
-        movers.push(new Mover(mass,vel,loc));
+        // uncomment agar bisa liat movement
+        //movers.push(new Mover(mass,vel,loc));
     }
 
 
@@ -466,9 +516,9 @@ function random(min, max) {
     return Math.random() * (max - min) + min;
 }
 
-// The Nature of Code
-// Daniel Shiffman
-// http://natureofcode.com
+
+
+
 /* MOVER CLASS */
 function Mover(m,vel,loc) {
     this.location = loc,
