@@ -2,7 +2,7 @@ var options = {
     framerate:60,
     G:10,
     START_SPEED:0,
-    MOVER_COUNT:1,
+    MOVER_COUNT:10,
     TRAILS_DISPLAY:false,
     TRAILS_LENGTH:200,
     MIN_MASS:100,
@@ -18,7 +18,7 @@ options.RestoreDefaults = function() {
     framerate:60,
     G:10,
     START_SPEED:0,
-    MOVER_COUNT:1,
+    MOVER_COUNT:10,
     TRAILS_DISPLAY:false,
     TRAILS_LENGTH:200,
     MIN_MASS:100,
@@ -30,6 +30,7 @@ options.RestoreDefaults = function() {
   reset();
 }
 options.Restart = function() {
+    timeBegin = 0;
     reset();
 }
 options.Pause = function() {
@@ -126,39 +127,20 @@ renderer.autoClearColor = true;
 
 // Add renderer to set color to white
 //renderer.setClearColor( 0xffffff );
-const shockwaveMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffff00, // Yellow color
-    opacity: 0.2,     // Semi-transparent
-    transparent: true
-  });
+// const shockwaveMaterial = new THREE.MeshBasicMaterial({
+//     color: 0xffff00, // Yellow color
+//     opacity: 0.2,     // Semi-transparent
+//     transparent: true
+//   });
 
-  shockwaveSphere = new THREE.Mesh(
-    new THREE.SphereGeometry(1000, 32, 32),
-    shockwaveMaterial
-  );
+//   shockwaveSphere = new THREE.Mesh(
+//     new THREE.SphereGeometry(1000, 32, 32),
+//     shockwaveMaterial
+//   );
 
-  scene.add(shockwaveSphere);
+//   scene.add(shockwaveSphere);
 
-function updateShockwave() {
-    // Increase the scale of the shockwave
-    shockwaveSphere.scale.x += 0.06;
-    shockwaveSphere.scale.y += 0.06;
-    shockwaveSphere.scale.z += 0.06;
 
-    // Make the shockwave disappear
-    shockwaveSphere.material.opacity -= 0.002;
-
-    // Reset the shockwave after a certain scale and opacity
-    if (shockwaveSphere.scale.x > 4) {
-      resetShockwave();
-    }
-  }
-
-  function resetShockwave() {
-    // Reset scale and opacity
-    shockwaveSphere.scale.set(1, 1, 1);
-    shockwaveSphere.material.opacity = 0.2;
-  }
 
 class Sphere {
     constructor(scene, x, y, z, color) {
@@ -184,9 +166,26 @@ class Atom {
         this.scene = scene;
         this.color1 = color1;
         this.color2 = color2;
-    
+        this.shockwaveSphere = null;
         this.spheres = [];
+        this.decay = false;
     
+        this.shockwaveMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffff00, // Yellow color
+            opacity: 0.2,     // Semi-transparent
+            transparent: true
+            });
+        
+        this.shockwaveSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(1000, 32, 32),
+        this.shockwaveMaterial
+        );
+
+        this.shockwaveSphere.position.set(this.location.x, this.location.y, this.location.z);
+        this.shockwaveSphere.visible = false;
+        
+        scene.add(this.shockwaveSphere);
+        
         this.createAtom();
     }
     
@@ -249,6 +248,27 @@ class Atom {
             );
     
             sphere.mesh.position.copy(newPosition);
+        }
+    }
+
+
+
+
+    updateShockwave() {
+        // Increase the scale of the shockwave
+        this.shockwaveSphere.visible = true;
+        this.shockwaveSphere.scale.x += 0.06;
+        this.shockwaveSphere.scale.y += 0.06;
+        this.shockwaveSphere.scale.z += 0.06;
+
+        // Make the shockwave disappear
+        this.shockwaveSphere.material.opacity -= 0.002;
+
+        // Reset the shockwave after a certain scale and opacity
+        if (this.shockwaveSphere.scale.x > 6) {
+            this.shockwaveSphere.scale.x = 0;
+            this.shockwaveSphere.scale.y = 0;
+            this.shockwaveSphere.scale.z = 0;
         }
     }
     
@@ -334,15 +354,22 @@ reset();
 
 var pause = false;
 
-function draw() {
+function draw(atoms) {
     requestAnimationFrame(draw);
     now = Date.now();
     renderDelta = now - then;    
-    updateShockwave();
+    // for (let i = 0; i < atoms.length; i++) {
+    //     console.log(atoms[i].decay);
+    //     if(atoms[i].decay == true)
+    //     {
+    //         console.log(atoms[i].decay);
+    //         atoms[i].updateShockwave();
+    //     }
+    // }
     render(renderDelta);
     then = now;
 }
-draw();
+draw(atoms);
 
 function render(dt) {
 
@@ -361,7 +388,15 @@ function render(dt) {
     if(atoms && atoms.length){
         if (!pause) {
             for(var i = 0; i < atoms.length; i++){
-     
+
+                // logic shockwavenya disini
+                if(timeNow - timeBegin >= 5000)
+                {
+                    console.log(timeNow - timeBegin);
+                    atoms[i].updateShockwave();
+                }
+                
+
                 const shakeIntensity = 7; // Adjust the intensity of the shake as needed
                 for (let j = 0; j < atoms[i].spheres.length; j++) {
                     //console.log("hello");
@@ -626,6 +661,7 @@ function reset() {
           for (var j = 0; j < spheres.length; j = j + 1) {
             spheres[j].delete(); // Corrected the loop variable and method invocation
           }
+          scene.remove(atoms[i].shockwaveSphere);
         }
       }
       
@@ -819,8 +855,8 @@ function setCamera() {
     camera.position.x = currentRadius * Math.sin( theta * Math.PI / 360 ) * Math.cos( phi * Math.PI / 360 );
     camera.position.y = currentRadius * Math.sin( phi * Math.PI / 360 );
     camera.position.z = currentRadius * Math.cos( theta * Math.PI / 360 ) * Math.cos( phi * Math.PI / 360 );
-    camera.lookAt(mesh.position);
-    // camera.lookAt(new THREE.Vector3(0,0,0));
+    // camera.lookAt(mesh.position);
+    camera.lookAt(new THREE.Vector3(0,0,0));
     camera.updateMatrix();
 }
 
