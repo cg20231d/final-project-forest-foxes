@@ -2,7 +2,7 @@ var options = {
     framerate:60,
     G:10,
     START_SPEED:0,
-    MOVER_COUNT:10,
+    MOVER_COUNT:1,
     TRAILS_DISPLAY:false,
     TRAILS_LENGTH:200,
     MIN_MASS:100,
@@ -18,7 +18,7 @@ options.RestoreDefaults = function() {
     framerate:60,
     G:10,
     START_SPEED:0,
-    MOVER_COUNT:10,
+    MOVER_COUNT:1,
     TRAILS_DISPLAY:false,
     TRAILS_LENGTH:200,
     MIN_MASS:100,
@@ -83,6 +83,7 @@ f.add(options, 'Pause');
 f.add(options, 'Restart');
 f.add(options, 'RestoreDefaults');
 
+var timeBegin = new Date();
 var lastTimeCalled = new Date();
 var countFramesPerSecond=0;
 var total_mass = 0;
@@ -124,166 +125,152 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.autoClearColor = true;
 
 // Add renderer to set color to white
-renderer.setClearColor( 0xffffff );
+//renderer.setClearColor( 0xffffff );
+const shockwaveMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffff00, // Yellow color
+    opacity: 0.2,     // Semi-transparent
+    transparent: true
+  });
 
-      // Create atoms (spheres)
-    //   const createSphere = (x, y, z, color, radius) => {
-    //     const geometry = new THREE.SphereGeometry(radius, 32, 32);
-    //     const material = new THREE.MeshPhongMaterial({ color });
-    //     const sphere = new THREE.Mesh(geometry, material);
-    //     sphere.position.set(x, y, z);
-    //     scene.add(sphere);
-    //   };
+  shockwaveSphere = new THREE.Mesh(
+    new THREE.SphereGeometry(1000, 32, 32),
+    shockwaveMaterial
+  );
 
-    //   function getRandomInt(min, max) {
-    //     // The Math.floor() function returns the largest integer less than or equal to a given number.
-    //     // The Math.random() function returns a random floating-point number between 0 (inclusive) and 1 (exclusive).
-    //     return Math.floor(Math.random() * (max - min + 1)) + min;
-    //   }
+  scene.add(shockwaveSphere);
 
-      
-    //   const createAtom = (n, color1, color2, radius) => {
-    //     for (let i = 0; i < n-2; i++)
-    //     {
-    //         let y = -200 + i * 200;
-    //         let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
-    //         createSphere(0, y, 0, color, radius);
-    //     }
+function updateShockwave() {
+    // Increase the scale of the shockwave
+    shockwaveSphere.scale.x += 0.06;
+    shockwaveSphere.scale.y += 0.06;
+    shockwaveSphere.scale.z += 0.06;
 
-    //     for (let i = 0; i < n+3; i++) {
-    //         const angle = (i / (n+3)) * Math.PI * 2;
-    //         const x = Math.cos(angle) * 200;
-    //         const z = Math.sin(angle) * 200;
-    //         let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
-    //         createSphere(x, 0, z, color, radius);
-    //     }
-    //     for (let i = 0; i < n; i++) {
-    //         const angle = (i / n) * Math.PI * 2;
-    //         const x = Math.cos(angle) * 150;
-    //         const z = Math.sin(angle) * 150;
-    //         let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
-    //         createSphere(x, 135, z, color, radius);
-    //     }
-    //     for (let i = 0; i < n; i++) {
-    //         const angle = (i / n) * Math.PI * 2;
-    //         const x = Math.cos(angle) * 150;
-    //         const z = Math.sin(angle) * 150;
-    //         let color = getRandomInt(1, 10) % 2 == 0 ? color1 : color2;
-    //         createSphere(x, -135, z, color, radius);
-    //     }
-    //   };
-      
-      
-      //createAtom(5, 0xff0000, 0x0000ff, 100);
+    // Make the shockwave disappear
+    shockwaveSphere.material.opacity -= 0.002;
+
+    // Reset the shockwave after a certain scale and opacity
+    if (shockwaveSphere.scale.x > 4) {
+      resetShockwave();
+    }
+  }
+
+  function resetShockwave() {
+    // Reset scale and opacity
+    shockwaveSphere.scale.set(1, 1, 1);
+    shockwaveSphere.material.opacity = 0.2;
+  }
 
 class Sphere {
-constructor(scene, x, y, z, color) {
-    this.scene = scene;
-    this.geometry = new THREE.SphereGeometry(100, 32, 32);
-    this.material = new THREE.MeshPhongMaterial({ color });
-    this.mesh = new THREE.Mesh(this.geometry, this.material);
-    this.mesh.position.set(x, y, z);
-    this.scene.add(this.mesh);
-}
+    constructor(scene, x, y, z, color) {
+        this.scene = scene;
+        this.geometry = new THREE.SphereGeometry(100, 32, 32);
+        this.material =  new THREE.MeshPhongMaterial({
+            ambient: 0x111111, color: color, specular: color, shininess: 50, emissive:0x000000
+        });
+        this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh.position.set(x, y, z);
+        this.scene.add(this.mesh);
+    }
 
-delete() {
-    this.scene.remove(this.mesh);
-}
+    delete() {
+        this.scene.remove(this.mesh);
+    }
 }
       
 
 class Atom {
-        constructor(color1, color2, loc) {
-            this.location = loc;
-            this.scene = scene;
-            this.color1 = color1;
-            this.color2 = color2;
-        
-            this.spheres = [];
-        
-            this.createAtom();
+    constructor(color1, color2, loc) {
+        this.location = loc;
+        this.scene = scene;
+        this.color1 = color1;
+        this.color2 = color2;
+    
+        this.spheres = [];
+    
+        this.createAtom();
+    }
+    
+    createSphere(x, y, z, color) {
+        const sphere = new Sphere(this.scene, x, y, z, color);
+        this.spheres.push(sphere);
         }
-      
-        createSphere(x, y, z, color) {
-            const sphere = new Sphere(this.scene, x, y, z, color);
-            this.spheres.push(sphere);
-          }
-      
-        getRandomInt(min, max) {
-          return Math.floor(Math.random() * (max - min + 1)) + min;
+    
+    getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+    
+    createAtom() {
+        for (let i = 0; i < 3; i++) {
+        let y = -200 + i * 200;
+        let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+        this.createSphere(this.location.x, this.location.y + y, this.location.z, color);
         }
-      
-        createAtom() {
-          for (let i = 0; i < 3; i++) {
-            let y = -200 + i * 200;
-            let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
-            this.createSphere(this.location.x, this.location.y + y, this.location.z, color);
-          }
-      
-          for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const x = Math.cos(angle) * 200;
-            const z = Math.sin(angle) * 200;
-            let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
-            this.createSphere(this.location.x + x, this.location.y, this.location.z + z, color);
-          }
-      
-          // Add other spheres and their positions here...
-      
-          for (let i = 0; i < 5; i++) {
-            const angle = (i / 5) * Math.PI * 2;
-            const x = Math.cos(angle) * 150;
-            const z = Math.sin(angle) * 150;
-            let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
-            this.createSphere(this.location.x + x, this.location.y + 135, this.location.z + z, color);
-          }
-      
-          for (let i = 0; i < 5; i++) {
-            const angle = (i / 5) * Math.PI * 2;
-            const x = Math.cos(angle) * 150;
-            const z = Math.sin(angle) * 150;
-            let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
-            this.createSphere(this.location.x + x, this.location.y - 135, this.location.z + z, color);
-          }
+    
+        for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const x = Math.cos(angle) * 200;
+        const z = Math.sin(angle) * 200;
+        let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+        this.createSphere(this.location.x + x, this.location.y, this.location.z + z, color);
         }
+    
+        // Add other spheres and their positions here...
+    
+        for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const x = Math.cos(angle) * 150;
+        const z = Math.sin(angle) * 150;
+        let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+        this.createSphere(this.location.x + x, this.location.y + 135, this.location.z + z, color);
+        }
+    
+        for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const x = Math.cos(angle) * 150;
+        const z = Math.sin(angle) * 150;
+        let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+        this.createSphere(this.location.x + x, this.location.y - 135, this.location.z + z, color);
+        }
+    }
 
-        shakeAtom() {
-            const shakeIntensity = 5; // Adjust the intensity of the shake as needed
-            for (let i = 0; i < this.spheres.length; i++) {
-                //console.log("hello");
-              const sphere = this.spheres[i];
-              const offsetX = (Math.random() - 0.5) * shakeIntensity;
-              const offsetY = (Math.random() - 0.5) * shakeIntensity;
-              const offsetZ = (Math.random() - 0.5) * shakeIntensity;
-        
-              const newPosition = new THREE.Vector3(
-                sphere.mesh.position.x + offsetX,
-                sphere.mesh.position.y + offsetY,
-                sphere.mesh.position.z + offsetZ
-              );
-        
-              sphere.mesh.position.copy(newPosition);
-            }
-          }
-        
-          startInfiniteShake(intervalTime) {
-            //console.log("im here");
-            this.infiniteShakeInterval = setInterval(() => {
-              this.shakeAtom();
-            }, intervalTime);
-          }
-        
-          stopInfiniteShake() {
-            clearInterval(this.infiniteShakeInterval);
-          }
-        
-      
-        moveSphere(index, x, y, z) {
-          if (index >= 0 && index < this.spheres.length) {
-            this.spheres[index].position.set(this.location.x, this.location.y, this.location.z);
-          }
+    shakeAtom() {
+        const shakeIntensity = 7; // Adjust the intensity of the shake as needed
+        for (let i = 0; i < this.spheres.length; i++) {
+            //console.log("hello");
+            const sphere = this.spheres[i];
+            const offsetX = (Math.random() - 0.5) * shakeIntensity;
+            const offsetY = (Math.random() - 0.5) * shakeIntensity;
+            const offsetZ = (Math.random() - 0.5) * shakeIntensity;
+    
+            const newPosition = new THREE.Vector3(
+            sphere.mesh.position.x + offsetX,
+            sphere.mesh.position.y + offsetY,
+            sphere.mesh.position.z + offsetZ
+            );
+    
+            sphere.mesh.position.copy(newPosition);
         }
-      }
+    }
+    
+    startInfiniteShake(intervalTime) {
+        //console.log("im here");
+        this.infiniteShakeInterval = setInterval(() => {
+            this.shakeAtom();
+        }, intervalTime);
+        }
+    
+    stopInfiniteShake() {
+        console.log("hello");
+        clearInterval(this.infiniteShakeInterval);
+    }
+    
+    
+    moveSphere(index, x, y, z) {
+        if (index >= 0 && index < this.spheres.length) {
+        this.spheres[index].position.set(this.location.x, this.location.y, this.location.z);
+        }
+    }
+}
       
 
       // Untuk Testing yang aslinya di reset()
@@ -325,9 +312,9 @@ var blueLight = new THREE.DirectionalLight(0x2288ff);
 blueLight.position.set(0,-1, -1);
 scene.add(blueLight);
 
-var greenLight = new THREE.DirectionalLight(0x00aa00);
-greenLight.position.set(0, 1, 1);
-scene.add(greenLight);
+// var greenLight = new THREE.DirectionalLight(0x00aa00);
+// greenLight.position.set(0, 1, 1);
+// scene.add(greenLight);
 
 var $real_framerate = $("#real_framerate");
 var $framerate = $("#framerate");
@@ -351,6 +338,7 @@ function draw() {
     requestAnimationFrame(draw);
     now = Date.now();
     renderDelta = now - then;    
+    updateShockwave();
     render(renderDelta);
     then = now;
 }
@@ -370,8 +358,35 @@ function render(dt) {
     total_mass = 0;
     var maximum_mass = 0.00;
 
+    if(atoms && atoms.length){
+        if (!pause) {
+            for(var i = 0; i < atoms.length; i++){
+     
+                const shakeIntensity = 7; // Adjust the intensity of the shake as needed
+                for (let j = 0; j < atoms[i].spheres.length; j++) {
+                    //console.log("hello");
+                    const sphere = atoms[i].spheres[j];
+                    const offsetX = (Math.random() - 0.5) * shakeIntensity;
+                    const offsetY = (Math.random() - 0.5) * shakeIntensity;
+                    const offsetZ = (Math.random() - 0.5) * shakeIntensity;
+            
+                    const newPosition = new THREE.Vector3(
+                    sphere.mesh.position.x + offsetX,
+                    sphere.mesh.position.y + offsetY,
+                    sphere.mesh.position.z + offsetZ
+                    );
+            
+                    sphere.mesh.position.copy(newPosition);
+                }
+                
+            }
+        }
+    }
+
+
     if (movers && movers.length) {
         if (!pause) {
+
             for (var i = movers.length-1; i >= 0; i--) {
                 var m = movers[i];
 
@@ -636,6 +651,7 @@ function reset() {
 
         // Push Atom 
         atoms.push(new Atom(0xff0000, 0x0000ff, loc));
+        //atoms[i].startInfiniteShake(10);
         //movers.push(new Mover(mass,vel,loc));
     }
 
@@ -751,7 +767,7 @@ function Mover(m,vel,loc) {
             //} else {
             //    this.selectionLight.intensity = constrain(this.mass / total_mass, .1, 1);
             //}
-            var emissiveColor = this.color.getHex().toString(16);
+            var emissiveColor = this.color.getHex().toString(16);vertices
             emissiveColor = 1; // darkenColor(emissiveColor,1000); // (1-(total_mass-this.mass)/total_mass)*((isMoverSelected && this.selected)?.5:1));
             this.basicMaterial.emissive.setHex(parseInt(emissiveColor,16));
         } else {
@@ -803,7 +819,8 @@ function setCamera() {
     camera.position.x = currentRadius * Math.sin( theta * Math.PI / 360 ) * Math.cos( phi * Math.PI / 360 );
     camera.position.y = currentRadius * Math.sin( phi * Math.PI / 360 );
     camera.position.z = currentRadius * Math.cos( theta * Math.PI / 360 ) * Math.cos( phi * Math.PI / 360 );
-    camera.lookAt(new THREE.Vector3(0,0,0));
+    camera.lookAt(mesh.position);
+    // camera.lookAt(new THREE.Vector3(0,0,0));
     camera.updateMatrix();
 }
 
