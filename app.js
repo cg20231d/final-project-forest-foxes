@@ -127,25 +127,13 @@ renderer.autoClearColor = true;
 
 // Add renderer to set color to white
 //renderer.setClearColor( 0xffffff );
-// const shockwaveMaterial = new THREE.MeshBasicMaterial({
-//     color: 0xffff00, // Yellow color
-//     opacity: 0.2,     // Semi-transparent
-//     transparent: true
-//   });
-
-//   shockwaveSphere = new THREE.Mesh(
-//     new THREE.SphereGeometry(1000, 32, 32),
-//     shockwaveMaterial
-//   );
-
-//   scene.add(shockwaveSphere);
 
 
 
 class Sphere {
     constructor(scene, x, y, z, color) {
         this.scene = scene;
-        this.geometry = new THREE.SphereGeometry(100, 32, 32);
+        this.geometry = new THREE.SphereGeometry(100, SPHERE_SIDES, SPHERE_SIDES);
         this.material =  new THREE.MeshPhongMaterial({
             ambient: 0x111111, color: color, specular: color, shininess: 50, emissive:0x000000
         });
@@ -169,31 +157,37 @@ class Atom {
         this.shockwaveSphere = null;
         this.spheres = [];
         this.decay = false;
+        this.decaySphere = [];
     
-        this.shockwaveMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffff00, // Yellow color
-            opacity: 0.2,     // Semi-transparent
+        this.shockwaveMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffff00, shininess: 40, 
+            opacity: 0.4,     // Semi-transparent
             transparent: true
             });
         
         this.shockwaveSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(1000, 32, 32),
-        this.shockwaveMaterial
+            new THREE.SphereGeometry(1000, SPHERE_SIDES, SPHERE_SIDES),
+            this.shockwaveMaterial
         );
 
         this.shockwaveSphere.position.set(this.location.x, this.location.y, this.location.z);
         this.shockwaveSphere.visible = false;
         
         scene.add(this.shockwaveSphere);
-        
         this.createAtom();
+        this.createDecayAtom();
     }
     
     createSphere(x, y, z, color) {
         const sphere = new Sphere(this.scene, x, y, z, color);
         this.spheres.push(sphere);
-        }
+    }
     
+    createDecaySphere(x, y, z, color) {
+        const sphere = new Sphere(this.scene, x, y, z, color);
+        this.decaySphere.push(sphere);
+    }
+
     getRandomInt(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
@@ -232,6 +226,17 @@ class Atom {
         }
     }
 
+    createDecayAtom(){
+        for (let i = 0; i < 2; i++) {
+            let color =  this.color1;
+            this.createDecaySphere(this.location.x, this.location.y, this.location.z, color);
+        }
+        for (let i = 0; i < 2; i++) {
+            let color =  this.color2;
+            this.createDecaySphere(this.location.x, this.location.y, this.location.z, color);
+        }
+    }
+
     shakeAtom() {
         const shakeIntensity = 7; // Adjust the intensity of the shake as needed
         for (let i = 0; i < this.spheres.length; i++) {
@@ -257,12 +262,12 @@ class Atom {
     updateShockwave() {
         // Increase the scale of the shockwave
         this.shockwaveSphere.visible = true;
-        this.shockwaveSphere.scale.x += 0.06;
-        this.shockwaveSphere.scale.y += 0.06;
-        this.shockwaveSphere.scale.z += 0.06;
+        this.shockwaveSphere.scale.x += 0.1;
+        this.shockwaveSphere.scale.y += 0.1;
+        this.shockwaveSphere.scale.z += 0.1;
 
         // Make the shockwave disappear
-        this.shockwaveSphere.material.opacity -= 0.002;
+        this.shockwaveSphere.material.opacity -= 0.01;
 
         // Reset the shockwave after a certain scale and opacity
         if (this.shockwaveSphere.scale.x > 6) {
@@ -277,10 +282,10 @@ class Atom {
         this.infiniteShakeInterval = setInterval(() => {
             this.shakeAtom();
         }, intervalTime);
-        }
+    }
     
     stopInfiniteShake() {
-        console.log("hello");
+        //console.log("hello");
         clearInterval(this.infiniteShakeInterval);
     }
     
@@ -358,14 +363,6 @@ function draw(atoms) {
     requestAnimationFrame(draw);
     now = Date.now();
     renderDelta = now - then;    
-    // for (let i = 0; i < atoms.length; i++) {
-    //     console.log(atoms[i].decay);
-    //     if(atoms[i].decay == true)
-    //     {
-    //         console.log(atoms[i].decay);
-    //         atoms[i].updateShockwave();
-    //     }
-    // }
     render(renderDelta);
     then = now;
 }
@@ -392,7 +389,7 @@ function render(dt) {
                 // logic shockwavenya disini
                 if(timeNow - timeBegin >= 5000)
                 {
-                    console.log(timeNow - timeBegin);
+                    //console.log(timeNow - timeBegin);
                     atoms[i].updateShockwave();
                 }
                 
@@ -400,15 +397,16 @@ function render(dt) {
                 const shakeIntensity = 7; // Adjust the intensity of the shake as needed
                 for (let j = 0; j < atoms[i].spheres.length; j++) {
                     //console.log("hello");
+                    //console.log(j);
                     const sphere = atoms[i].spheres[j];
                     const offsetX = (Math.random() - 0.5) * shakeIntensity;
                     const offsetY = (Math.random() - 0.5) * shakeIntensity;
                     const offsetZ = (Math.random() - 0.5) * shakeIntensity;
             
                     const newPosition = new THREE.Vector3(
-                    sphere.mesh.position.x + offsetX,
-                    sphere.mesh.position.y + offsetY,
-                    sphere.mesh.position.z + offsetZ
+                        sphere.mesh.position.x + offsetX,
+                        sphere.mesh.position.y + offsetY,
+                        sphere.mesh.position.z + offsetZ
                     );
             
                     sphere.mesh.position.copy(newPosition);
@@ -657,7 +655,11 @@ function reset() {
         // console.log(atoms.length);
         for (var i = 0; i < atoms.length; i = i + 1) {
           let spheres = atoms[i].spheres;
-         // console.log(spheres);
+          let decaySpheres = atoms[i].decaySphere;
+          //console.log(decaySpheres);
+          for (var j = 0; j < decaySpheres.length; j = j + 1) {
+            decaySpheres[j].delete(); // Corrected the loop variable and method invocation
+          }
           for (var j = 0; j < spheres.length; j = j + 1) {
             spheres[j].delete(); // Corrected the loop variable and method invocation
           }
