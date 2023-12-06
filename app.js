@@ -1,36 +1,21 @@
+// import * as THREE from 'three';
+
 var options = {
-    framerate:60,
-    G:10,
-    START_SPEED:0,
-    MOVER_COUNT:10,
-    TRAILS_DISPLAY:false,
-    TRAILS_LENGTH:200,
-    MIN_MASS:100,
-    MAX_MASS:1000,
-    DENSITY:0.1,
+    TOTAL_ATOMS:10,
+    DENSITY:0.5,
+    HALF_LIFE:5,
 
 };
-
-if (localStorage && localStorage.getItem("options")) options = JSON.parse(localStorage.getItem("options"));
 
 options.RestoreDefaults = function() {
   options = {
-    framerate:60,
-    G:10,
-    START_SPEED:0,
-    MOVER_COUNT:10,
-    TRAILS_DISPLAY:false,
-    TRAILS_LENGTH:200,
-    MIN_MASS:100,
-    MAX_MASS:1000,
-    DENSITY:0.1,
+    TOTAL_ATOMS:10,
+    DENSITY:0.5,
+    HALF_LIFE:5,
 };
   
-  if (localStorage) localStorage.setItem("options",JSON.stringify(options));
-  reset();
 }
 options.Restart = function() {
-    timeBegin = 0;
     reset();
 }
 options.Pause = function() {
@@ -41,29 +26,16 @@ options.Pause = function() {
 var gui = new dat.GUI();
 var f = gui.addFolder('Environment');
 f.open();
-//f.add(options, 'framerate', 1, 120);
-f.add(options, 'G', 1, 1000);
-var fMoverCountE = f.add(options, 'MOVER_COUNT', 1, 1000);
-fMoverCountE.onFinishChange(function(value) {
+
+var fTotalAtomsE = f.add(options, 'TOTAL_ATOMS', 1, 1000);
+fTotalAtomsE.onFinishChange(function(value) {
     // Fires when a controller loses focus.
     reset();
 });
 
-f = gui.addFolder('Trails');
-f.open();
-f.add(options, 'TRAILS_DISPLAY');
-f.add(options, 'TRAILS_LENGTH', 0, 10000);
-
-f = gui.addFolder('Masses');
-f.open();
-var fMinMassChangeE = f.add(options, 'MIN_MASS', .00001,10000.0);
-
-fMinMassChangeE.onFinishChange(function(value) {
-   reset();
-});
-
-var fMaxMassChangeE = f.add(options, 'MAX_MASS', .00001,10000.0);
-fMaxMassChangeE.onFinishChange(function(value) {
+var fHalfLifeE = f.add(options, 'HALF_LIFE', 1, 10);
+fHalfLifeE.onFinishChange(function(value) {
+    // Fires when a controller loses focus.
     reset();
 });
 
@@ -75,30 +47,22 @@ fDensityE.onFinishChange(function(value) {
     reset();
 });
 
-var fSpeedE = f.add(options, 'START_SPEED', 1e-100,100.0);
-fSpeedE.onFinishChange(function(value) {
-    reset();
-});
 
 f.add(options, 'Pause');
 f.add(options, 'Restart');
 f.add(options, 'RestoreDefaults');
 
 var timeBegin = new Date();
-var lastTimeCalled = new Date();
-var countFramesPerSecond=0;
-var total_mass = 0;
-var lerpLookAt = new THREE.Vector3();
 var lookAt = new THREE.Vector3();
 
-var MASS_FACTOR = .01; // for display of size
+
 
 var SPHERE_SIDES = 12;
 
 var zoom = 1.0;
 var translate = new THREE.Vector3();
 
-var movers = [];
+
 var atoms = [];
 var now;
 var then = Date.now();
@@ -110,16 +74,11 @@ var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHei
 var renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true, antialias:true });
 //var projector = new THREE.Projector();
 
-var isMoverSelected = false;
 
 var controls = new THREE.OrbitControls( camera, renderer.domElement );
 
 // END dat GUI
 
-
-var lineMaterial = new THREE.LineBasicMaterial({
-    color: 0xffffff
-});
 
 scene.castShadow=true;
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -186,6 +145,28 @@ class Atom {
         this.acceleration_x = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
         this.acceleration_y = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
         this.acceleration_z = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
+
+
+        // // Create a text geometry
+        // const textGeometry = new THREE.TextGeometry('211PO', {
+        //     font: new THREE.FontLoader().load('path/to/your/font.json'), // Replace with the path to your font file
+        //     size: 50,
+        //     height: 5,
+        //     curveSegments: 6,
+        //     bevelEnabled: true,
+        //     bevelThickness: 2,
+        //     bevelSize: 1,
+        //     bevelSegments: 5
+        // });
+
+        // const textMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+
+        // // Create a text mesh
+        // const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        // textMesh.position.set(this.location.x, this.location.y + 150, this.location.z); // Adjust the position as needed
+
+        // // Add the text mesh to the scene
+        // this.scene.add(textMesh);
 
 
         scene.add(this.shockwaveSphere);
@@ -372,27 +353,12 @@ class Atom {
 }
       
 
-      // Untuk Testing yang aslinya di reset()
-    //     var loc = new THREE.Vector3(0,0,0);
-    //    const atom = new Atom(0xff0000, 0x0000ff, loc);
-    //    atom.startInfiniteShake(5);
 
 //renderer.shadowMapEnabled=true;
 document.body.appendChild(renderer.domElement);
 
-// var geometry = new THREE.SphereGeometry(1.0,8,8);
-// cube = new THREE.Mesh(geometry, material);
-// scene.add(cube);
-// var cube;
 
 
-var basicMaterial =  new THREE.MeshLambertMaterial({
-    ambient: 0x111111, diffuse: 0x555555, specular: 0xffffff, shininess: 50
-});
-
-var selectedMaterial =  new THREE.MeshLambertMaterial({
-    ambient: 0xaaaaaa, diffuse: 0xdddddd, specular: 0xffffff, shininess: 50,emissive:0x000000
-});
 // add subtle ambient lighting
 // directional lighting
 var ambientLight = new THREE.AmbientLight(0x222222);
@@ -424,7 +390,6 @@ $framerate.bind("change keyup mouseup",function() {
         renderInterval = 1000/parseInt(options.framerate);
     }
 }).change();
-var $movers_alive_count = $("#movers_alive_count");
 var $total_mass = $("#total_mass");
 var $maximum_mass = $("#maximum_mass");
 var $fps = $("#fps");
@@ -445,16 +410,6 @@ draw(atoms);
 function render(dt) {
 
     var timeNow = new Date();
-    if(lastTimeCalled && timeNow.getMilliseconds() < lastTimeCalled.getMilliseconds()){
-        $real_framerate.html(countFramesPerSecond);
-        countFramesPerSecond=1;
-    } else {
-        countFramesPerSecond += 1;
-    }
-
-    var movers_alive_count = 0;
-    total_mass = 0;
-    var maximum_mass = 0.00;
 
     if(atoms && atoms.length){
         if (!pause) {
@@ -462,6 +417,10 @@ function render(dt) {
                 let p;
                 let elapsedTime = timeNow - timeBegin;
                 if(elapsedTime >= 100000)
+                {
+                    p = 100;
+                }
+                else if(elapsedTime >= 100000)
                 {
                     p = 25;
                 }
@@ -486,7 +445,7 @@ function render(dt) {
                     p = 1;
                 }
 
-                let randomNumber = Math.floor(Math.random() * (1000)) + 1;
+                let randomNumber = Math.floor(Math.random() * (3000)) + 1;
                 if(!atoms[i].done && (p >= randomNumber || atoms[i].alphadecay))
                 {
                     //console.log(timeNow - timeBegin);
@@ -511,7 +470,7 @@ function render(dt) {
                    
                 }
 
-                if(elapsedTime >= 5000)
+                if(elapsedTime >= (1000 * parseInt(options.HALF_LIFE)))
                 {
                     //sudah halflife
                     if(!atoms[i].halflife)
@@ -545,126 +504,10 @@ function render(dt) {
         }
     }
 
-
-    if (movers && movers.length) {
-        if (!pause) {
-
-            for (var i = movers.length-1; i >= 0; i--) {
-                var m = movers[i];
-
-                if (m.alive) {
-                    for (var j =  movers.length-1; j >= 0; j--) {
-                        var a = movers[j];
-                        if (movers[i].alive && movers[j].alive && i != j) {
-                            var distance = m.location.distanceTo(a.location);
-
-                            var radiusM = Math.pow((m.mass / MASS_FACTOR/MASS_FACTOR / 4* Math.PI), 1/3)/3;
-                            var radiusA = Math.pow((a.mass / MASS_FACTOR/MASS_FACTOR / 4* Math.PI), 1/3)/3;
-
-                            if (distance < radiusM + radiusA) {
-                                // merge objects
-                                a.eat(m);
-                            }
-                            else
-                            {
-                               a.attract(m);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        var selectedMover; 
-        var totalMassPosition = new THREE.Vector3() ;
-        for (var i = movers.length-1; i >= 0; i--) {
-            var m = movers[i];
-            if (m.alive) {
-                movers_alive_count ++;
-                total_mass += m.mass;
-                totalMassPosition.add(m.location.clone().multiplyScalar(m.mass));
-              
-                if (m.mass > maximum_mass) maximum_mass = m.mass;
-              
-                if (!pause) { m.update(); }
-                m.display(displayMass);
-              
-                if (m.selected) {
-                  selectedMover = m;
-                }
-
-            }
-
-            updateTrails(m);
-          
-          
-        }
-
-        $movers_alive_count.html(movers_alive_count);
-        $total_mass.html(total_mass.toFixed(2));
-        $maximum_mass.html(maximum_mass.toFixed(2));
-        $fps.html((1000/dt).toFixed(0));
-        totalMassPosition.divideScalar(total_mass);
-    }
-    
-    if (prevTotalMassPosition) {
-      camera.position.add(new THREE.Vector3().subVectors(totalMassPosition,prevTotalMassPosition));
-      camera.updateMatrix();
-    }
-  
-  
-    prevTotalMassPosition = totalMassPosition;
-    if (isMoverSelected && selectedMover) {
-      lookAt = selectedMover.location.clone();
-    }
-    lerpLookAt.lerp(lookAt, .05);
-    if (isMoverSelected) {
-      var lookAtDiff = controls.target.clone().sub(lerpLookAt);
-      camera.position.x -= lookAtDiff.x;
-      camera.position.y -= lookAtDiff.y;
-      camera.position.z -= lookAtDiff.z;
-      camera.updateMatrix();
-      controls.target = lerpLookAt.clone();
-    }
-    
-    //console.log("center of mass", totalMassPosition);
-   
-
     controls.update();
     renderer.render(scene, camera);
-
-    lastTimeCalled = new Date();
-
 }
-var prevTotalMassPosition; 
-function updateTrails(m) {
-    if (isMoverSelected) {
-        if (m.selected) {
-            if (options.TRAILS_DISPLAY) {
-                m.showTrails();
-            } else {
-                m.hideTrails();
-            }
-            //this.selectionLight.intensity = 2;
-            //this.directionalLight.intensity = 0.5;
-            //selectionLight.position = m.location;
 
-            selectedMaterial.emissive = m.line.material.color;
-            //selectionLight.color = m.line.material.color;
-            m.mesh.material = selectedMaterial;
-
-        } else {
-            m.mesh.material = m.basicMaterial;
-            m.hideTrails();
-        }
-    } else {
-        m.mesh.material = m.basicMaterial;
-        if (options.TRAILS_DISPLAY) {
-            m.showTrails();
-        } else {
-            m.hideTrails();
-        }
-    }
-}
 
 window.onmousemove = function(e) {
     if (onMouseDown) onMouseDown.moved=true;
@@ -770,13 +613,7 @@ window.addEventListener("keyup", function(e) {
 
 
 function reset() {
-    if (movers) {
-        for (var i=0;i<movers.length;i=i+1) {
-            scene.remove(movers[i].mesh);
-            //scene.remove(movers[i].selectionLight);
-            scene.remove(movers[i].line);
-        }
-    }
+    timeBegin = new Date();
 
     // if there is atom, delete all mesh
     if (atoms) {
@@ -796,176 +633,25 @@ function reset() {
         }
       }
       
-    movers = [];
     atoms = [];
     translate.x = 0.0;
     translate.y = 0.0;
     translate.z = 0.0;
 
     // INI FUNGSI UNTUK GENERATE SEMUA ATOMNYA UNCOMMENT YANG PUSH ATOM
-    // generate N movers with random mass (N = MOVER_COUNT)
-    for (var i=0;i<parseInt(options.MOVER_COUNT);i=i+1) {
-        //console.log(parseInt(options.MOVER_COUNT));
-        var mass = random(options.MIN_MASS,options.MAX_MASS);
+    // generate N movers with random mass (N = TOTAL_ATOMS)
+    for (var i=0;i<parseInt(options.TOTAL_ATOMS);i=i+1) {
 
         var max_distance = parseFloat(1000 / options.DENSITY);
-        var max_speed = parseFloat(options.START_SPEED);
 
-
-        var vel = new THREE.Vector3(random(-max_speed,max_speed),random(-max_speed,max_speed),random(-max_speed,max_speed));
-        //var vel = new THREE.Vector3();
         var loc = new THREE.Vector3(random(-max_distance,max_distance),random(-max_distance,max_distance),random(-max_distance,max_distance));
 
-        // Push Atom 
         atoms.push(new Atom(0xff0000, 0x0000ff, loc));
-        //atoms[i].startInfiniteShake(10);
-        //movers.push(new Mover(mass,vel,loc));
     }
-
-
-    if (localStorage) localStorage.setItem("options",JSON.stringify(options));
 }
 function random(min, max) {
     return Math.random() * (max - min) + min;
 }
-
-
-/* MOVER CLASS */
-function Mover(m,vel,loc) {
-    this.location = loc,
-    this.velocity = vel,
-    this.acceleration = new THREE.Vector3(0.0,0.0,0.0),
-    this.mass = m,
-    this.c = 0xffffff,
-    this.alive = true;
-    this.geometry = new THREE.SphereGeometry(100.0,SPHERE_SIDES,SPHERE_SIDES);
-
-    this.vertices = [];     // PATH OF MOVEMENT
-
-    this.line = new THREE.Line();       // line to display movement
-
-    this.color = this.line.material.color;
-    //this.line = THREE.Line(this.lineGeometry, lineMaterial);
-
-    this.basicMaterial =  new THREE.MeshPhongMaterial({
-        ambient: 0x111111, color: this.color, specular: this.color, shininess: 10
-    });
-
-    //this.selectionLight = new THREE.PointLight(this.color,.1);
-    //this.selectionLight.position.copy(this.location);
-    this.mesh = new THREE.Mesh(this.geometry,this.basicMaterial);
-    this.mesh.castShadow = false;
-    this.mesh.receiveShadow = true;
-
-
-    this.position = this.location;
-
-    this.index = movers.length;
-    this.selected = false;
-
-    scene.add(this.mesh);
-    //scene.add(this.selectionLight);
-    this.applyForce = function(force) {
-        if (!this.mass) this.mass = 1.0;
-        var f = force.divideScalar(this.mass);
-        this.acceleration.add(f);
-    };
-    this.update = function() {
-
-        this.velocity.add(this.acceleration);
-        this.location.add(this.velocity);
-        this.acceleration.multiplyScalar(0);
-
-        //this.selectionLight.position.copy(this.location);
-        this.mesh.position.copy(this.location);
-        if (this.vertices.length > 10000) this.vertices.splice(0,1);
-
-        this.vertices.push(this.location.clone());
-        //this.lineGeometry.verticesNeedUpdate = true;
-
-    };
-    this.eat = function(m) { // m => other Mover object
-        var newMass = this.mass + m.mass;
-
-        var newLocation = new THREE.Vector3(
-            (this.location.x * this.mass + m.location.x * m.mass)/newMass,
-            (this.location.y * this.mass + m.location.y * m.mass)/newMass,
-            (this.location.z * this.mass + m.location.z * m.mass)/newMass);
-        var newVelocity = new THREE.Vector3(
-            (this.velocity.x *this.mass + m.velocity.x * m.mass) / newMass,
-            (this.velocity.y *this.mass + m.velocity.y * m.mass) / newMass,
-            (this.velocity.z *this.mass + m.velocity.z * m.mass) / newMass);
-
-        this.location=newLocation;
-        this.velocity=newVelocity;
-        this.mass = newMass;
-
-        if (m.selected) this.selected = true;
-        this.color.lerpHSL(m.color, m.mass /  (m.mass + this.mass));
-      
-        m.kill();
-    };
-    this.kill = function () {
-        this.alive=false;
-        //this.selectionLight.intensity = 0;
-        scene.remove(this.mesh);
-    };
-    this.attract = function(m) {   // m => other Mover object
-        var force = new THREE.Vector3().subVectors(this.location,m.location);         // Calculate direction of force
-        var d = force.lengthSq();
-        if (d<0) d*=-1;
-        force = force.normalize();
-        var strength = - (options.G * this.mass * m.mass) / (d);      // Calculate gravitional force magnitude
-        force = force.multiplyScalar(strength);                             // Get force vector --> magnitude * direction
-        
-        this.applyForce(force);
-    };
-    this.display = function() {
-        if (this.alive) {
-            var scale = Math.pow((this.mass*MASS_FACTOR/(4*Math.PI)), 1/3);
-            this.mesh.scale.x = scale;
-            this.mesh.scale.y = scale;
-            this.mesh.scale.z = scale;
-
-            var emissiveColor = this.color.getHex().toString(16);vertices
-            emissiveColor = 1; 
-            this.basicMaterial.emissive.setHex(parseInt(emissiveColor,16));
-        } else {
-            //this.selectionLight.intensity = 0;
-        }
-    };
-
-
-    this.showTrails = function() {
-        if (!this.lineDrawn) {
-            this.lineDrawn = true;
-            scene.add(this.line);
-        } else if (this.lineDrawn === true) {
-            scene.remove(this.line);
-            var newLineGeometry = new THREE.Geometry();
-            newLineGeometry.vertices = this.vertices.slice();
-
-            newLineGeometry.verticesNeedUpdate = true;
-            if (!pause && !this.alive) {
-                if (this.lineDrawn === true) {
-                  this.vertices.shift();  
-                }
-            }
-            while (newLineGeometry.vertices.length > parseInt(options.TRAILS_LENGTH)) {
-                newLineGeometry.vertices.shift();
-            }
-            this.line = new THREE.Line(newLineGeometry, this.line.material);
-            scene.add(this.line);
-        }
-    }
-    this.hideTrails = function() {
-        if (this.lineDrawn) {
-            scene.remove(this.line);
-            this.lineDrawn = false;
-        }
-    }
-}
-
 function constrain(value,min,max) {
     if (value < min) return min;
     if (value > max) return max;
@@ -973,9 +659,7 @@ function constrain(value,min,max) {
 }
 
 function setCamera() {
-    for (var i = 0; i < movers.length; i=i+1 ) {
-        updateTrails(movers[i]);
-    }
+
     camera.position.x = currentRadius * Math.sin( theta * Math.PI / 360 ) * Math.cos( phi * Math.PI / 360 );
     camera.position.y = currentRadius * Math.sin( phi * Math.PI / 360 );
     camera.position.z = currentRadius * Math.cos( theta * Math.PI / 360 ) * Math.cos( phi * Math.PI / 360 );
