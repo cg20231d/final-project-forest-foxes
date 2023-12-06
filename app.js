@@ -126,14 +126,14 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.autoClearColor = true;
 
 // Add renderer to set color to white
-//renderer.setClearColor( 0xffffff );
+renderer.setClearColor( 0xffffff );
 
 
 
 class Sphere {
     constructor(scene, x, y, z, color) {
         this.scene = scene;
-        this.geometry = new THREE.SphereGeometry(100, SPHERE_SIDES, SPHERE_SIDES);
+        this.geometry = new THREE.SphereGeometry(90, SPHERE_SIDES, SPHERE_SIDES);
         this.material =  new THREE.MeshPhongMaterial({
             ambient: 0x111111, color: color, specular: color, shininess: 50, emissive:0x000000
         });
@@ -142,11 +142,17 @@ class Sphere {
         this.scene.add(this.mesh);
     }
 
+    position(){   
+        console.log(this.mesh.position); 
+        return this.mesh.position;
+    }
+
     delete() {
         this.scene.remove(this.mesh);
     }
 }
       
+
 
 class Atom {
     constructor(color1, color2, loc) {
@@ -172,6 +178,14 @@ class Atom {
 
         this.shockwaveSphere.position.set(this.location.x, this.location.y, this.location.z);
         this.shockwaveSphere.visible = false;
+
+        this.acceleration_x = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
+        this.acceleration_y = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
+        this.acceleration_z = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
+
+        console.log(this.acceleration_x);
+        console.log(this.acceleration_y);
+        console.log(this.acceleration_z);
         
         scene.add(this.shockwaveSphere);
         this.createAtom();
@@ -190,6 +204,16 @@ class Atom {
 
     getRandomInt(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    decayExplode(){        
+        for(let i = 0; i < this.decaySphere.length; i++)
+        {
+            this.decaySphere[i].position().x += this.acceleration_x;
+            this.decaySphere[i].position().y += this.acceleration_y;
+            this.decaySphere[i].position().z += this.acceleration_z;
+        }
+        
     }
     
     createAtom() {
@@ -227,13 +251,23 @@ class Atom {
     }
 
     createDecayAtom(){
+        // for (let i = 0; i < 2; i++) {
+        //     let color =  this.color1;
+        //     this.createDecaySphere(this.location.x, this.location.y, this.location.z, color);
+        // }
+        // for (let i = 0; i < 2; i++) {
+        //     let color =  this.color2;
+        //     this.createDecaySphere(this.location.x, this.location.y, this.location.z, color);
+        // }
         for (let i = 0; i < 2; i++) {
             let color =  this.color1;
-            this.createDecaySphere(this.location.x, this.location.y, this.location.z, color);
+            let x = i * 200;
+            this.createDecaySphere(this.location.x + x, this.location.y, this.location.z, color);
         }
         for (let i = 0; i < 2; i++) {
             let color =  this.color2;
-            this.createDecaySphere(this.location.x, this.location.y, this.location.z, color);
+            let y = -100 + (i * 200);
+            this.createDecaySphere(this.location.x + 100, this.location.y + y, this.location.z, color);
         }
     }
 
@@ -391,6 +425,7 @@ function render(dt) {
                 {
                     //console.log(timeNow - timeBegin);
                     atoms[i].updateShockwave();
+                    atoms[i].decayExplode();
                 }
                 
 
@@ -798,21 +833,14 @@ function Mover(m,vel,loc) {
             this.mesh.scale.y = scale;
             this.mesh.scale.z = scale;
 
-           //this.line = new THREE.Line(this.lineGeometry,lineMaterial);
-
-            //if (isMoverSelected && this.selected) {
-            //    this.selectionLight.intensity = 2;    
-            //} else {
-            //    this.selectionLight.intensity = constrain(this.mass / total_mass, .1, 1);
-            //}
             var emissiveColor = this.color.getHex().toString(16);vertices
-            emissiveColor = 1; // darkenColor(emissiveColor,1000); // (1-(total_mass-this.mass)/total_mass)*((isMoverSelected && this.selected)?.5:1));
+            emissiveColor = 1; 
             this.basicMaterial.emissive.setHex(parseInt(emissiveColor,16));
         } else {
             //this.selectionLight.intensity = 0;
         }
-
     };
+
 
     this.showTrails = function() {
         if (!this.lineDrawn) {
@@ -860,9 +888,4 @@ function setCamera() {
     // camera.lookAt(mesh.position);
     camera.lookAt(new THREE.Vector3(0,0,0));
     camera.updateMatrix();
-}
-
-function darkenColor(color, percent) {
-    var f=parseInt(color.slice(1),16),t=percent<0?0:255,p=percent<0?percent*-1:percent,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF;
-    return (0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
 }
