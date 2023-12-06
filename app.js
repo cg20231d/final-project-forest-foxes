@@ -1,13 +1,12 @@
+import * as THREE from 'three';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+
 var options = {
-    framerate:60,
-    G:10,
-    START_SPEED:0,
-    MOVER_COUNT:100,
-    TRAILS_DISPLAY:false,
-    TRAILS_LENGTH:200,
-    MIN_MASS:100,
-    MAX_MASS:1000,
-    DENSITY:0.1,
+    TOTAL_ATOMS:10,
+    DENSITY:0.5,
+    HALF_LIFE:5,
 
 };
 
@@ -15,19 +14,11 @@ if (localStorage && localStorage.getItem("options")) options = JSON.parse(localS
 
 options.RestoreDefaults = function() {
   options = {
-    framerate:60,
-    G:10,
-    START_SPEED:0,
-    MOVER_COUNT:100,
-    TRAILS_DISPLAY:false,
-    TRAILS_LENGTH:200,
-    MIN_MASS:100,
-    MAX_MASS:1000,
-    DENSITY:0.1,
+    TOTAL_ATOMS:10,
+    DENSITY:0.5,
+    HALF_LIFE:5,
 };
   
-  if (localStorage) localStorage.setItem("options",JSON.stringify(options));
-  reset();
 }
 options.Restart = function() {
     reset();
@@ -40,29 +31,16 @@ options.Pause = function() {
 var gui = new dat.GUI();
 var f = gui.addFolder('Environment');
 f.open();
-//f.add(options, 'framerate', 1, 120);
-f.add(options, 'G', 1, 1000);
-var fMoverCountE = f.add(options, 'MOVER_COUNT', 1, 1000);
-fMoverCountE.onFinishChange(function(value) {
+
+var fTotalAtomsE = f.add(options, 'TOTAL_ATOMS', 1, 1000);
+fTotalAtomsE.onFinishChange(function(value) {
     // Fires when a controller loses focus.
     reset();
 });
 
-f = gui.addFolder('Trails');
-f.open();
-f.add(options, 'TRAILS_DISPLAY');
-f.add(options, 'TRAILS_LENGTH', 0, 10000);
-
-f = gui.addFolder('Masses');
-f.open();
-var fMinMassChangeE = f.add(options, 'MIN_MASS', .00001,10000.0);
-
-fMinMassChangeE.onFinishChange(function(value) {
-   reset();
-});
-
-var fMaxMassChangeE = f.add(options, 'MAX_MASS', .00001,10000.0);
-fMaxMassChangeE.onFinishChange(function(value) {
+var fHalfLifeE = f.add(options, 'HALF_LIFE', 1, 10);
+fHalfLifeE.onFinishChange(function(value) {
+    // Fires when a controller loses focus.
     reset();
 });
 
@@ -74,29 +52,23 @@ fDensityE.onFinishChange(function(value) {
     reset();
 });
 
-var fSpeedE = f.add(options, 'START_SPEED', 1e-100,100.0);
-fSpeedE.onFinishChange(function(value) {
-    reset();
-});
 
 f.add(options, 'Pause');
 f.add(options, 'Restart');
 f.add(options, 'RestoreDefaults');
 
-var lastTimeCalled = new Date();
-var countFramesPerSecond=0;
-var total_mass = 0;
-var lerpLookAt = new THREE.Vector3();
+var timeBegin = new Date();
 var lookAt = new THREE.Vector3();
 
-var MASS_FACTOR = .01; // for display of size
+
 
 var SPHERE_SIDES = 12;
 
 var zoom = 1.0;
 var translate = new THREE.Vector3();
 
-var movers = [];
+
+var atoms = [];
 var now;
 var then = Date.now();
 var renderInterval = 1000/parseInt(options.framerate);
@@ -107,214 +79,537 @@ var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHei
 var renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true, antialias:true });
 //var projector = new THREE.Projector();
 
-var isMoverSelected = false;
 
-var controls = new THREE.OrbitControls( camera, renderer.domElement );
+var controls = new OrbitControls( camera, renderer.domElement );
 
 // END dat GUI
 
 
-var lineMaterial = new THREE.LineBasicMaterial({
-    color: 0xffffff
-});
-
 scene.castShadow=true;
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.autoClearColor = true;
+
+// Add renderer to set color to white
+renderer.setClearColor( 0x424242 );
+
+
+
+
+
+class Sphere {
+    constructor(scene, x, y, z, color) {
+        this.scene = scene;
+        this.geometry = new THREE.SphereGeometry(90, SPHERE_SIDES, SPHERE_SIDES);
+        this.material =  new THREE.MeshPhongMaterial({
+            ambient: 0xffffff, color: color, specular: color, shininess: 50, emissive:0x000000
+        });
+        this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh.position.set(x, y, z);
+        this.scene.add(this.mesh);
+    }
+
+    position(){   
+        //console.log(this.mesh.position); 
+        return this.mesh.position;
+    }
+
+    delete() {
+        this.scene.remove(this.mesh);
+    }
+}
+
+
+// const neutron = new Sphere(scene, 5000, 2500, 0, 0x0000ff);
+// const proton = new Sphere(scene, 5000, 2000, 0, 0xff0000);
+// let max_distance = parseFloat(1000 / options.DENSITY);
+// const loader1 = new FontLoader();
+
+// loader1.load('./src/fonts/Open_Sans_Semibold_Regular.json', (font) => {
+//     // Create text geometry
+//     const geometry = new TextGeometry('Alpha Decay', {
+//         font: font,
+//         size: 500,
+//         height: 5,
+//         curveSegments: 12,
+//         bevelEnabled: true,
+//         bevelThickness: 10,
+//         bevelSize: 8,
+//         bevelOffset: 0,
+//         bevelSegments: 5,
+//     });
+
+//     // Create material
+//     const material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+//     // Create mesh with the text geometry and material
+//     const textMesh = new THREE.Mesh(geometry, material);
+
+//     // Set the position of the text mesh using the Atom's location
+//     textMesh.position.set(-2500, 2500, -max_distance);
+
+//     // Add the text mesh to the scene
+//     scene.add(textMesh);
+// });
+
+
+
+      
+
+
+class Atom {
+    constructor(color1, color2, loc) {
+        this.location = loc;
+        this.scene = scene;
+        this.color1 = color1;
+        this.color2 = color2;
+        this.shockwaveSphere = null;
+        this.spheres = [];
+        this.decay = false;
+        this.decaySphere = [];
+        this.halflife = false;
+        this.shake = true;
+        this.alphadecay = false;
+        this.done = false;
+        this.text = null;
+        this.colorChange = false;
+    
+        this.shockwaveMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffffff, shininess: 40, 
+            opacity: 0.5,     // Semi-transparent
+            transparent: true
+            });
+        
+        this.shockwaveSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(500, SPHERE_SIDES, SPHERE_SIDES),
+            this.shockwaveMaterial
+        );
+
+        this.shockwaveSphere.position.set(this.location.x, this.location.y, this.location.z);
+        this.shockwaveSphere.visible = false;
+
+        this.acceleration_x = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
+        this.acceleration_y = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
+        this.acceleration_z = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
+
+        const loader = new FontLoader();
+
+        loader.load('./src/fonts/Open_Sans_Semibold_Regular.json', (font) => {
+            // Create text geometry
+            const geometry = new TextGeometry('211PO', {
+                font: font,
+                size: 100,
+                height: 5,
+                curveSegments: 12,
+                bevelEnabled: true,
+                bevelThickness: 10,
+                bevelSize: 8,
+                bevelOffset: 0,
+                bevelSegments: 5,
+            });
+        
+            // Create material
+            const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        
+            // Create mesh with the text geometry and material
+            this.text = new THREE.Mesh(geometry, material);
+        
+            // Set the position of the text mesh using the Atom's location
+            this.text.position.set(this.location.x - 200, this.location.y + 300, this.location.z);
+        
+            // Add the text mesh to the scene
+            this.scene.add(this.text);
+        });
+        
+
+        scene.add(this.shockwaveSphere);
+        this.createAtom();
+        this.createDecayAtom();
+    }
+
+    newText(){
+        const loader = new FontLoader();
+
+        loader.load('./src/fonts/Open_Sans_Semibold_Regular.json', (font) => {
+            // Create text geometry
+            const geometry = new TextGeometry('207PB', {
+                font: font,
+                size: 100,
+                height: 5,
+                curveSegments: 12,
+                bevelEnabled: true,
+                bevelThickness: 10,
+                bevelSize: 8,
+                bevelOffset: 0,
+                bevelSegments: 5,
+            });
+        
+            // Create material
+            const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+
+            this.scene.remove(this.text);
+        
+            // Create mesh with the text geometry and material
+            this.text = new THREE.Mesh(geometry, material);
+        
+            // Set the position of the text mesh using the Atom's location
+            this.text.position.set(this.location.x - 200, this.location.y + 300, this.location.z);
+        
+            // // Add the text mesh to the scene
+            this.scene.add(this.text);
+        });
+    }
+
+    changeColor(){
+        for (let i = 0; i < this.spheres.length; i++) {
+            const sphere = this.spheres[i];
+            const originalColor = sphere.material.color.getHex();
+
+            // Check if the original color is red or blue
+            if (originalColor === 0xff0000) { // Red
+                // Change red to yellow (0xffff00)
+                sphere.material.color.setHex(0xffff00);
+            } else if (originalColor === 0x0000ff) { // Blue
+                // Change blue to green (0x00ff00)
+                sphere.material.color.setHex(0x00ff00);
+            }
+            this.dead = true;
+        }
+    }
+    
+    changeHalfColor(){
+        for (let i = 0; i < this.spheres.length/2; i++) {
+            const sphere = this.spheres[i];
+            const originalColor = sphere.material.color.getHex();
+
+            // Check if the original color is red or blue
+            if (originalColor === 0xff0000) { // Red
+                // Change red to yellow (0xffff00)
+                sphere.material.color.setHex(0xffff00);
+            } else if (originalColor === 0x0000ff) { // Blue
+                // Change blue to green (0x00ff00)
+                sphere.material.color.setHex(0x00ff00);
+            }
+            this.dead = true;
+        }
+    }
+
+    createSphere(x, y, z, color) {
+        const sphere = new Sphere(this.scene, x, y, z, color);
+        this.spheres.push(sphere);
+    }
+    
+    createDecaySphere(x, y, z, color) {
+        const sphere = new Sphere(this.scene, x, y, z, color);
+        this.decaySphere.push(sphere);
+    }
+
+    getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    decayExplode(){       
+        this.shake = false; 
+        for(let i = 0; i < this.decaySphere.length; i++)
+        {
+            if (Math.abs(this.decaySphere[i].position().x - this.location.x) > 6000) {
+                this.decay = true;
+                this.changeColor();
+                return;
+            }
+            this.decaySphere[i].position().x += this.acceleration_x;
+            this.decaySphere[i].position().y += this.acceleration_y;
+            this.decaySphere[i].position().z += this.acceleration_z;
+        }   
+    }
+    
+    createAtom() {
+        for (let i = 0; i < 3; i++) {
+        let y = -200 + i * 200;
+        let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+        this.createSphere(this.location.x, this.location.y + y, this.location.z, color);
+        }
+    
+        for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const x = Math.cos(angle) * 200;
+        const z = Math.sin(angle) * 200;
+        let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+        this.createSphere(this.location.x + x, this.location.y, this.location.z + z, color);
+        }
+    
+        // Add other spheres and their positions here...
+    
+        for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const x = Math.cos(angle) * 150;
+        const z = Math.sin(angle) * 150;
+        let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+        this.createSphere(this.location.x + x, this.location.y + 135, this.location.z + z, color);
+        }
+    
+        for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const x = Math.cos(angle) * 150;
+        const z = Math.sin(angle) * 150;
+        let color = this.getRandomInt(1, 10) % 2 == 0 ? this.color1 : this.color2;
+        this.createSphere(this.location.x + x, this.location.y - 135, this.location.z + z, color);
+        }
+    }
+
+    createDecayAtom(){
+        // for (let i = 0; i < 2; i++) {
+        //     let color =  this.color1;
+        //     this.createDecaySphere(this.location.x, this.location.y, this.location.z, color);
+        // }
+        // for (let i = 0; i < 2; i++) {
+        //     let color =  this.color2;
+        //     this.createDecaySphere(this.location.x, this.location.y, this.location.z, color);
+        // }
+        for (let i = 0; i < 2; i++) {
+            let color =  this.color1;
+            let x = i * 200;
+            this.createDecaySphere(this.location.x + x, this.location.y, this.location.z, color);
+        }
+        for (let i = 0; i < 2; i++) {
+            let color =  this.color2;
+            let y = -100 + (i * 200);
+            this.createDecaySphere(this.location.x + 100, this.location.y + y, this.location.z, color);
+        }
+    }
+
+    shakeAtom() {
+        const shakeIntensity = 7; // Adjust the intensity of the shake as needed
+        for (let i = 0; i < this.spheres.length; i++) {
+            //console.log("hello");
+            const sphere = this.spheres[i];
+            const offsetX = (Math.random() - 0.5) * shakeIntensity;
+            const offsetY = (Math.random() - 0.5) * shakeIntensity;
+            const offsetZ = (Math.random() - 0.5) * shakeIntensity;
+    
+            const newPosition = new THREE.Vector3(
+            sphere.mesh.position.x + offsetX,
+            sphere.mesh.position.y + offsetY,
+            sphere.mesh.position.z + offsetZ
+            );
+    
+            sphere.mesh.position.copy(newPosition);
+        }
+    }
+
+
+
+
+    updateShockwave() {
+        // Increase the scale of the shockwave
+        this.shockwaveSphere.visible = true;
+        this.shockwaveSphere.scale.x += 0.1;
+        this.shockwaveSphere.scale.y += 0.1;
+        this.shockwaveSphere.scale.z += 0.1;
+
+        // Make the shockwave disappear
+        this.shockwaveSphere.material.opacity -= 0.01;
+
+        // Reset the shockwave after a certain scale and opacity
+        if (this.shockwaveSphere.scale.x > 6) {
+            this.shockwaveSphere.scale.x = 0;
+            this.shockwaveSphere.scale.y = 0;
+            this.shockwaveSphere.scale.z = 0;
+        }
+    }
+    
+    startInfiniteShake(intervalTime) {
+        //console.log("im here");
+        this.infiniteShakeInterval = setInterval(() => {
+            this.shakeAtom();
+        }, intervalTime);
+    }
+    
+    stopInfiniteShake() {
+        //console.log("hello");
+        clearInterval(this.infiniteShakeInterval);
+    }
+    
+    
+    moveSphere(index, x, y, z) {
+        if (index >= 0 && index < this.spheres.length) {
+        this.spheres[index].position.set(this.location.x, this.location.y, this.location.z);
+        }
+    }
+}
+      
+
+
 //renderer.shadowMapEnabled=true;
 document.body.appendChild(renderer.domElement);
-//var geometry = new THREE.SphereGeometry(1.0,8,8);
-//cube = new THREE.Mesh(geometry, material);
-//scene.add(cube);
-var cube;
 
 
-var basicMaterial =  new THREE.MeshLambertMaterial({
-    ambient: 0x111111, diffuse: 0x555555, specular: 0xffffff, shininess: 50
-});
 
-var selectedMaterial =  new THREE.MeshLambertMaterial({
-    ambient: 0xaaaaaa, diffuse: 0xdddddd, specular: 0xffffff, shininess: 50,emissive:0x000000
-});
 // add subtle ambient lighting
 // directional lighting
-var ambientLight = new THREE.AmbientLight(0x222222);
+var ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
-//var selectionLight = new THREE.PointLight(0xff0000,0);
-//selectionLight.castShadow = true;
-//scene.add(selectionLight);
+// var selectionLight = new THREE.PointLight(0xff0000,0);
+// selectionLight.castShadow = true;
+// scene.add(selectionLight);
 
 var redLight = new THREE.DirectionalLight(0xff9922);
-redLight.position.set(1, 2, 0);
+redLight.position.set(0, 0, 200);
 scene.add(redLight);
 
+
 var blueLight = new THREE.DirectionalLight(0x2288ff);
-blueLight.position.set(0,-1, -1);
+blueLight.position.set(0, 0, 200);
 scene.add(blueLight);
 
-//var greenLight = new THREE.DirectionalLight(0x00aa00);
-//greenLight.position.set(0, 1, 1);
-//scene.add(greenLight);
+// var greenLight = new THREE.DirectionalLight(0x00aa00);
+// greenLight.position.set(0, 1, 1);
+// scene.add(greenLight);
 
-var $real_framerate = $("#real_framerate");
-var $framerate = $("#framerate");
-$framerate.bind("change keyup mouseup",function() {
-    var v = parseInt(this.value);
-    if (v > 0) {
-        //options.framerate = v;
-        renderInterval = 1000/parseInt(options.framerate);
-    }
-}).change();
-var $movers_alive_count = $("#movers_alive_count");
-var $total_mass = $("#total_mass");
-var $maximum_mass = $("#maximum_mass");
-var $fps = $("#fps");
-var displayMass = false;
+
+var $po = $("#po");
+var $pb = $("#pb");
+var $eta = $("#eta");
+var $hl = $("#hl");
+
 reset();
 
 var pause = false;
 
-function draw() {
+function draw(atoms) {
     requestAnimationFrame(draw);
     now = Date.now();
     renderDelta = now - then;    
     render(renderDelta);
     then = now;
 }
-draw();
+draw(atoms);
 
 function render(dt) {
+
     var timeNow = new Date();
-    if(lastTimeCalled && timeNow.getMilliseconds() < lastTimeCalled.getMilliseconds()){
-        $real_framerate.html(countFramesPerSecond);
-        countFramesPerSecond=1;
-    } else {
-        countFramesPerSecond += 1;
-    }
 
-    var movers_alive_count = 0;
-    total_mass = 0;
-    var maximum_mass = 0.00;
-
-    if (movers && movers.length) {
+    if(atoms && atoms.length){
         if (!pause) {
-            for (var i = movers.length-1; i >= 0; i--) {
-                var m = movers[i];
+            let po = 0;
+            let pb = 0;
+            for(var i = 0; i < atoms.length; i++){
 
-                if (m.alive) {
-                    for (var j =  movers.length-1; j >= 0; j--) {
-                        var a = movers[j];
-                        if (movers[i].alive && movers[j].alive && i != j) {
-                            var distance = m.location.distanceTo(a.location);
+                if(atoms[i].alphadecay)
+                {
+                    pb++;
+                }
+                else
+                {
+                    po++;
+                }
 
-                            var radiusM = Math.pow((m.mass / MASS_FACTOR/MASS_FACTOR / 4* Math.PI), 1/3)/3;
-                            var radiusA = Math.pow((a.mass / MASS_FACTOR/MASS_FACTOR / 4* Math.PI), 1/3)/3;
 
-                            if (distance < radiusM + radiusA) {
-                                // merge objects
-                                a.eat(m);
-                            }
-                            else
+                let p;
+                let elapsedTime = timeNow - timeBegin;
+                $eta.html(elapsedTime);
+                if(elapsedTime >= 200000)
+                {
+                    p = 100;
+                }
+                else if(elapsedTime >= 100000)
+                {
+                    p = 25;
+                }
+                else if(elapsedTime >= 5000)
+                {
+                    p = 20;
+                }
+                else if(elapsedTime >= 4000)
+                {
+                    p = 15;
+                }
+                else if(elapsedTime >= 3000)
+                {
+                    p = 10;
+                }
+                else if(elapsedTime >= 2000)
+                {
+                    p = 5;
+                }
+                else if(elapsedTime >= 1000)
+                {
+                    p = 1;
+                }
+
+                let randomNumber = Math.floor(Math.random() * (3000)) + 1;
+                if(!atoms[i].done && (p >= randomNumber || atoms[i].alphadecay))
+                {
+                    //console.log(timeNow - timeBegin);
+                    atoms[i].alphadecay = true;
+                    if(!atoms[i].decay)
+                    {
+                        atoms[i].updateShockwave();
+                        atoms[i].decayExplode();
+                        if(!atoms[i].colorChange)
+                        {
+                            atoms[i].colorChange = true;
+                            atoms[i].changeColor();
+                            atoms[i].newText();
+                        }
+                        
+                    }
+                    else
+                    {
+                        if(atoms[i].decaySphere)
+                        {
+                            for(let j = 0; j < atoms[i].decaySphere.length; j++)
                             {
-                               a.attract(m);
+                                atoms[i].decaySphere[j].delete(); 
                             }
+                            atoms[i].done = true;
                         }
                     }
-                }
-            }
-        }
-        var selectedMover; 
-        var totalMassPosition = new THREE.Vector3() ;
-        for (var i = movers.length-1; i >= 0; i--) {
-            var m = movers[i];
-            if (m.alive) {
-                movers_alive_count ++;
-                total_mass += m.mass;
-                totalMassPosition.add(m.location.clone().multiplyScalar(m.mass));
-              
-                if (m.mass > maximum_mass) maximum_mass = m.mass;
-              
-                if (!pause) { m.update(); }
-                m.display(displayMass);
-              
-                if (m.selected) {
-                  selectedMover = m;
+                   
                 }
 
+                if(elapsedTime >= (1000 * parseFloat(options.HALF_LIFE)))
+                {
+                    //sudah halflife
+                    if(!atoms[i].halflife)
+                    {
+                        atoms[i].halflife = true;
+                        atoms[i].changeHalfColor();
+                    }
+                }
+                
+                if(atoms[i].shake)
+                {
+                    const shakeIntensity = 7; // Adjust the intensity of the shake as needed
+                    for (let j = 0; j < atoms[i].spheres.length; j++) {
+                        //console.log("hello");
+                        //console.log(j);
+                        const sphere = atoms[i].spheres[j];
+                        const offsetX = (Math.random() - 0.5) * shakeIntensity;
+                        const offsetY = (Math.random() - 0.5) * shakeIntensity;
+                        const offsetZ = (Math.random() - 0.5) * shakeIntensity;
+                
+                        const newPosition = new THREE.Vector3(
+                            sphere.mesh.position.x + offsetX,
+                            sphere.mesh.position.y + offsetY,
+                            sphere.mesh.position.z + offsetZ
+                        );
+                
+                        sphere.mesh.position.copy(newPosition);
+                    }
+                }
+                
             }
-
-            updateTrails(m);
-          
-          
+            $hl.html(1000 * parseFloat(options.HALF_LIFE));
+            $po.html(po);
+            $pb.html(pb);
         }
-
-        $movers_alive_count.html(movers_alive_count);
-        $total_mass.html(total_mass.toFixed(2));
-        $maximum_mass.html(maximum_mass.toFixed(2));
-        $fps.html((1000/dt).toFixed(0));
-        totalMassPosition.divideScalar(total_mass);
     }
-    
-    if (prevTotalMassPosition) {
-      camera.position.add(new THREE.Vector3().subVectors(totalMassPosition,prevTotalMassPosition));
-      camera.updateMatrix();
-    }
-  
-  
-    prevTotalMassPosition = totalMassPosition;
-    if (isMoverSelected && selectedMover) {
-      lookAt = selectedMover.location.clone();
-    }
-    lerpLookAt.lerp(lookAt, .05);
-    if (isMoverSelected) {
-      var lookAtDiff = controls.target.clone().sub(lerpLookAt);
-      camera.position.x -= lookAtDiff.x;
-      camera.position.y -= lookAtDiff.y;
-      camera.position.z -= lookAtDiff.z;
-      camera.updateMatrix();
-      controls.target = lerpLookAt.clone();
-    }
-    
-    //console.log("center of mass", totalMassPosition);
-   
 
     controls.update();
     renderer.render(scene, camera);
-
-    lastTimeCalled = new Date();
-
 }
-var prevTotalMassPosition; 
-function updateTrails(m) {
-    if (isMoverSelected) {
-        if (m.selected) {
-            if (options.TRAILS_DISPLAY) {
-                m.showTrails();
-            } else {
-                m.hideTrails();
-            }
-            //this.selectionLight.intensity = 2;
-            //this.directionalLight.intensity = 0.5;
-            //selectionLight.position = m.location;
 
-            selectedMaterial.emissive = m.line.material.color;
-            //selectionLight.color = m.line.material.color;
-            m.mesh.material = selectedMaterial;
-
-        } else {
-            m.mesh.material = m.basicMaterial;
-            m.hideTrails();
-        }
-    } else {
-        m.mesh.material = m.basicMaterial;
-        if (options.TRAILS_DISPLAY) {
-            m.showTrails();
-        } else {
-            m.hideTrails();
-        }
-    }
-}
 
 window.onmousemove = function(e) {
     if (onMouseDown) onMouseDown.moved=true;
@@ -352,22 +647,6 @@ window.onmouseup = function(e) {
             vector.unproject(camera);
             var raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
             var intersects = raycaster.intersectObjects( scene.children );
-            if ( intersects.length > 0 ) {
-                var clickedObj = (intersects[0].object);
-                isMoverSelected = false;
-                for  (var i = 0; i<movers.length; i=i+1) {
-                    if (movers[i].mesh == clickedObj) {
-                        movers[i].selected = !movers[i].selected;
-                        isMoverSelected = movers[i].selected;
-                        console.log("SELECTED p#"+i);
-                    } else {
-                        movers[i].selected = false;
-                    }
-                }
-
-            }else {
-                isMoverSelected = false;
-            }
         }
     }
     onMouseDown = false;
@@ -417,193 +696,53 @@ window.addEventListener("keyup", function(e) {
         holdDown = false;
     }
 });
-/* UNIVERSE */
-// The Nature of Code
-// Daniel Shiffman
-// http://natureofcode.com
+
+
 function reset() {
-    if (movers) {
-        for (var i=0;i<movers.length;i=i+1) {
-            scene.remove(movers[i].mesh);
-            //scene.remove(movers[i].selectionLight);
-            scene.remove(movers[i].line);
+    timeBegin = new Date();
+
+    // if there is atom, delete all mesh
+    if (atoms) {
+        // console.log("hello");
+        // console.log(atoms.length);
+        for (var i = 0; i < atoms.length; i = i + 1) {
+            let spheres = atoms[i].spheres;
+            let decaySpheres = atoms[i].decaySphere;
+
+            //console.log(decaySpheres);
+            for (var j = 0; j < decaySpheres.length; j = j + 1) {
+                decaySpheres[j].delete(); // Corrected the loop variable and method invocation
+            }
+            for (var j = 0; j < spheres.length; j = j + 1) {
+                spheres[j].delete(); // Corrected the loop variable and method invocation
+            }
+            scene.remove(atoms[i].shockwaveSphere);
+            console.log(atoms[i].text);
+            scene.remove(atoms[i].text);
         }
-    }
-  
-    movers = [];
+      }
+      
+    atoms = [];
     translate.x = 0.0;
     translate.y = 0.0;
     translate.z = 0.0;
 
-  //alert(options.MOVER_COUNT)
-    // generate N movers with random mass (N = MOVER_COUNT)
-    for (var i=0;i<parseInt(options.MOVER_COUNT);i=i+1) {
-        var mass = random(options.MIN_MASS,options.MAX_MASS);
+    // INI FUNGSI UNTUK GENERATE SEMUA ATOMNYA UNCOMMENT YANG PUSH ATOM
+    // generate N movers with random mass (N = TOTAL_ATOMS)
+    for (var i=0;i<parseInt(options.TOTAL_ATOMS);i=i+1) {
 
         var max_distance = parseFloat(1000 / options.DENSITY);
-        var max_speed = parseFloat(options.START_SPEED);
 
-
-        var vel = new THREE.Vector3(random(-max_speed,max_speed),random(-max_speed,max_speed),random(-max_speed,max_speed));
-        //var vel = new THREE.Vector3();
         var loc = new THREE.Vector3(random(-max_distance,max_distance),random(-max_distance,max_distance),random(-max_distance,max_distance));
 
-        movers.push(new Mover(mass,vel,loc));
+        atoms.push(new Atom(0xff0000, 0x0000ff, loc));
     }
-
-
     if (localStorage) localStorage.setItem("options",JSON.stringify(options));
 }
+
 function random(min, max) {
     return Math.random() * (max - min) + min;
 }
-
-// The Nature of Code
-// Daniel Shiffman
-// http://natureofcode.com
-/* MOVER CLASS */
-function Mover(m,vel,loc) {
-    this.location = loc,
-    this.velocity = vel,
-    this.acceleration = new THREE.Vector3(0.0,0.0,0.0),
-    this.mass = m,
-    this.c = 0xffffff,
-    this.alive = true;
-    this.geometry = new THREE.SphereGeometry(100.0,SPHERE_SIDES,SPHERE_SIDES);
-
-    this.vertices = [];     // PATH OF MOVEMENT
-
-    this.line = new THREE.Line();       // line to display movement
-
-    this.color = this.line.material.color;
-    //this.line = THREE.Line(this.lineGeometry, lineMaterial);
-
-    this.basicMaterial =  new THREE.MeshPhongMaterial({
-        ambient: 0x111111, color: this.color, specular: this.color, shininess: 10
-    });
-
-    //this.selectionLight = new THREE.PointLight(this.color,.1);
-    //this.selectionLight.position.copy(this.location);
-    this.mesh = new THREE.Mesh(this.geometry,this.basicMaterial);
-    this.mesh.castShadow = false;
-    this.mesh.receiveShadow = true;
-
-
-    this.position = this.location;
-
-    this.index = movers.length;
-    this.selected = false;
-
-    scene.add(this.mesh);
-    //scene.add(this.selectionLight);
-    this.applyForce = function(force) {
-        if (!this.mass) this.mass = 1.0;
-        var f = force.divideScalar(this.mass);
-        this.acceleration.add(f);
-    };
-    this.update = function() {
-
-        this.velocity.add(this.acceleration);
-        this.location.add(this.velocity);
-        this.acceleration.multiplyScalar(0);
-
-        //this.selectionLight.position.copy(this.location);
-        this.mesh.position.copy(this.location);
-        if (this.vertices.length > 10000) this.vertices.splice(0,1);
-
-        this.vertices.push(this.location.clone());
-        //this.lineGeometry.verticesNeedUpdate = true;
-
-    };
-    this.eat = function(m) { // m => other Mover object
-        var newMass = this.mass + m.mass;
-
-        var newLocation = new THREE.Vector3(
-            (this.location.x * this.mass + m.location.x * m.mass)/newMass,
-            (this.location.y * this.mass + m.location.y * m.mass)/newMass,
-            (this.location.z * this.mass + m.location.z * m.mass)/newMass);
-        var newVelocity = new THREE.Vector3(
-            (this.velocity.x *this.mass + m.velocity.x * m.mass) / newMass,
-            (this.velocity.y *this.mass + m.velocity.y * m.mass) / newMass,
-            (this.velocity.z *this.mass + m.velocity.z * m.mass) / newMass);
-
-        this.location=newLocation;
-        this.velocity=newVelocity;
-        this.mass = newMass;
-
-        if (m.selected) this.selected = true;
-        this.color.lerpHSL(m.color, m.mass /  (m.mass + this.mass));
-      
-        m.kill();
-    };
-    this.kill = function () {
-        this.alive=false;
-        //this.selectionLight.intensity = 0;
-        scene.remove(this.mesh);
-    };
-    this.attract = function(m) {   // m => other Mover object
-        var force = new THREE.Vector3().subVectors(this.location,m.location);         // Calculate direction of force
-        var d = force.lengthSq();
-        if (d<0) d*=-1;
-        force = force.normalize();
-        var strength = - (options.G * this.mass * m.mass) / (d);      // Calculate gravitional force magnitude
-        force = force.multiplyScalar(strength);                             // Get force vector --> magnitude * direction
-        
-        this.applyForce(force);
-    };
-    this.display = function() {
-        if (this.alive) {
-            var scale = Math.pow((this.mass*MASS_FACTOR/(4*Math.PI)), 1/3);
-            this.mesh.scale.x = scale;
-            this.mesh.scale.y = scale;
-            this.mesh.scale.z = scale;
-
-           //this.line = new THREE.Line(this.lineGeometry,lineMaterial);
-
-            //if (isMoverSelected && this.selected) {
-            //    this.selectionLight.intensity = 2;    
-            //} else {
-            //    this.selectionLight.intensity = constrain(this.mass / total_mass, .1, 1);
-            //}
-            var emissiveColor = this.color.getHex().toString(16);
-            emissiveColor = 1; // darkenColor(emissiveColor,1000); // (1-(total_mass-this.mass)/total_mass)*((isMoverSelected && this.selected)?.5:1));
-            this.basicMaterial.emissive.setHex(parseInt(emissiveColor,16));
-        } else {
-            //this.selectionLight.intensity = 0;
-        }
-
-    };
-
-    this.showTrails = function() {
-        if (!this.lineDrawn) {
-            this.lineDrawn = true;
-            scene.add(this.line);
-        } else if (this.lineDrawn === true) {
-            scene.remove(this.line);
-            var newLineGeometry = new THREE.Geometry();
-            newLineGeometry.vertices = this.vertices.slice();
-
-            newLineGeometry.verticesNeedUpdate = true;
-            if (!pause && !this.alive) {
-                if (this.lineDrawn === true) {
-                  this.vertices.shift();  
-                }
-            }
-            while (newLineGeometry.vertices.length > parseInt(options.TRAILS_LENGTH)) {
-                newLineGeometry.vertices.shift();
-            }
-            this.line = new THREE.Line(newLineGeometry, this.line.material);
-            scene.add(this.line);
-        }
-    }
-    this.hideTrails = function() {
-        if (this.lineDrawn) {
-            scene.remove(this.line);
-            this.lineDrawn = false;
-        }
-    }
-}
-
 function constrain(value,min,max) {
     if (value < min) return min;
     if (value > max) return max;
@@ -611,17 +750,11 @@ function constrain(value,min,max) {
 }
 
 function setCamera() {
-    for (var i = 0; i < movers.length; i=i+1 ) {
-        updateTrails(movers[i]);
-    }
+
     camera.position.x = currentRadius * Math.sin( theta * Math.PI / 360 ) * Math.cos( phi * Math.PI / 360 );
     camera.position.y = currentRadius * Math.sin( phi * Math.PI / 360 );
     camera.position.z = currentRadius * Math.cos( theta * Math.PI / 360 ) * Math.cos( phi * Math.PI / 360 );
+    // camera.lookAt(mesh.position);
     camera.lookAt(new THREE.Vector3(0,0,0));
     camera.updateMatrix();
-}
-
-function darkenColor(color, percent) {
-    var f=parseInt(color.slice(1),16),t=percent<0?0:255,p=percent<0?percent*-1:percent,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF;
-    return (0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
 }
