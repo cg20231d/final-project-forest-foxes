@@ -1,4 +1,7 @@
-// import * as THREE from 'three';
+import * as THREE from 'three';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 
 var options = {
     TOTAL_ATOMS:10,
@@ -6,6 +9,8 @@ var options = {
     HALF_LIFE:5,
 
 };
+
+if (localStorage && localStorage.getItem("options")) options = JSON.parse(localStorage.getItem("options"));
 
 options.RestoreDefaults = function() {
   options = {
@@ -75,7 +80,7 @@ var renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true, antialias:
 //var projector = new THREE.Projector();
 
 
-var controls = new THREE.OrbitControls( camera, renderer.domElement );
+var controls = new OrbitControls( camera, renderer.domElement );
 
 // END dat GUI
 
@@ -85,7 +90,9 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.autoClearColor = true;
 
 // Add renderer to set color to white
-renderer.setClearColor( 0xffffff );
+renderer.setClearColor( 0x424242 );
+
+
 
 
 
@@ -94,7 +101,7 @@ class Sphere {
         this.scene = scene;
         this.geometry = new THREE.SphereGeometry(90, SPHERE_SIDES, SPHERE_SIDES);
         this.material =  new THREE.MeshPhongMaterial({
-            ambient: 0x111111, color: color, specular: color, shininess: 50, emissive:0x000000
+            ambient: 0xffffff, color: color, specular: color, shininess: 50, emissive:0x000000
         });
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         this.mesh.position.set(x, y, z);
@@ -110,6 +117,42 @@ class Sphere {
         this.scene.remove(this.mesh);
     }
 }
+
+
+// const neutron = new Sphere(scene, 5000, 2500, 0, 0x0000ff);
+// const proton = new Sphere(scene, 5000, 2000, 0, 0xff0000);
+// let max_distance = parseFloat(1000 / options.DENSITY);
+// const loader1 = new FontLoader();
+
+// loader1.load('./src/fonts/Open_Sans_Semibold_Regular.json', (font) => {
+//     // Create text geometry
+//     const geometry = new TextGeometry('Alpha Decay', {
+//         font: font,
+//         size: 500,
+//         height: 5,
+//         curveSegments: 12,
+//         bevelEnabled: true,
+//         bevelThickness: 10,
+//         bevelSize: 8,
+//         bevelOffset: 0,
+//         bevelSegments: 5,
+//     });
+
+//     // Create material
+//     const material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+//     // Create mesh with the text geometry and material
+//     const textMesh = new THREE.Mesh(geometry, material);
+
+//     // Set the position of the text mesh using the Atom's location
+//     textMesh.position.set(-2500, 2500, -max_distance);
+
+//     // Add the text mesh to the scene
+//     scene.add(textMesh);
+// });
+
+
+
       
 
 
@@ -127,15 +170,17 @@ class Atom {
         this.shake = true;
         this.alphadecay = false;
         this.done = false;
+        this.text = null;
+        this.colorChange = false;
     
         this.shockwaveMaterial = new THREE.MeshPhongMaterial({
-            color: 0xffff00, shininess: 40, 
-            opacity: 0.4,     // Semi-transparent
+            color: 0xffffff, shininess: 40, 
+            opacity: 0.5,     // Semi-transparent
             transparent: true
             });
         
         this.shockwaveSphere = new THREE.Mesh(
-            new THREE.SphereGeometry(1000, SPHERE_SIDES, SPHERE_SIDES),
+            new THREE.SphereGeometry(500, SPHERE_SIDES, SPHERE_SIDES),
             this.shockwaveMaterial
         );
 
@@ -146,32 +191,72 @@ class Atom {
         this.acceleration_y = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
         this.acceleration_z = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
 
+        const loader = new FontLoader();
 
-        // // Create a text geometry
-        // const textGeometry = new THREE.TextGeometry('211PO', {
-        //     font: new THREE.FontLoader().load('path/to/your/font.json'), // Replace with the path to your font file
-        //     size: 50,
-        //     height: 5,
-        //     curveSegments: 6,
-        //     bevelEnabled: true,
-        //     bevelThickness: 2,
-        //     bevelSize: 1,
-        //     bevelSegments: 5
-        // });
-
-        // const textMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-
-        // // Create a text mesh
-        // const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        // textMesh.position.set(this.location.x, this.location.y + 150, this.location.z); // Adjust the position as needed
-
-        // // Add the text mesh to the scene
-        // this.scene.add(textMesh);
-
+        loader.load('./src/fonts/Open_Sans_Semibold_Regular.json', (font) => {
+            // Create text geometry
+            const geometry = new TextGeometry('211PO', {
+                font: font,
+                size: 100,
+                height: 5,
+                curveSegments: 12,
+                bevelEnabled: true,
+                bevelThickness: 10,
+                bevelSize: 8,
+                bevelOffset: 0,
+                bevelSegments: 5,
+            });
+        
+            // Create material
+            const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        
+            // Create mesh with the text geometry and material
+            this.text = new THREE.Mesh(geometry, material);
+        
+            // Set the position of the text mesh using the Atom's location
+            this.text.position.set(this.location.x - 200, this.location.y + 300, this.location.z);
+        
+            // Add the text mesh to the scene
+            this.scene.add(this.text);
+        });
+        
 
         scene.add(this.shockwaveSphere);
         this.createAtom();
         this.createDecayAtom();
+    }
+
+    newText(){
+        const loader = new FontLoader();
+
+        loader.load('./src/fonts/Open_Sans_Semibold_Regular.json', (font) => {
+            // Create text geometry
+            const geometry = new TextGeometry('207PB', {
+                font: font,
+                size: 100,
+                height: 5,
+                curveSegments: 12,
+                bevelEnabled: true,
+                bevelThickness: 10,
+                bevelSize: 8,
+                bevelOffset: 0,
+                bevelSegments: 5,
+            });
+        
+            // Create material
+            const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+
+            this.scene.remove(this.text);
+        
+            // Create mesh with the text geometry and material
+            this.text = new THREE.Mesh(geometry, material);
+        
+            // Set the position of the text mesh using the Atom's location
+            this.text.position.set(this.location.x - 200, this.location.y + 300, this.location.z);
+        
+            // // Add the text mesh to the scene
+            this.scene.add(this.text);
+        });
     }
 
     changeColor(){
@@ -361,7 +446,7 @@ document.body.appendChild(renderer.domElement);
 
 // add subtle ambient lighting
 // directional lighting
-var ambientLight = new THREE.AmbientLight(0x222222);
+var ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
 // var selectionLight = new THREE.PointLight(0xff0000,0);
@@ -369,31 +454,24 @@ scene.add(ambientLight);
 // scene.add(selectionLight);
 
 var redLight = new THREE.DirectionalLight(0xff9922);
-redLight.position.set(1, 2, 0);
+redLight.position.set(0, 0, 200);
 scene.add(redLight);
 
 
 var blueLight = new THREE.DirectionalLight(0x2288ff);
-blueLight.position.set(0,-1, -1);
+blueLight.position.set(0, 0, 200);
 scene.add(blueLight);
 
 // var greenLight = new THREE.DirectionalLight(0x00aa00);
 // greenLight.position.set(0, 1, 1);
 // scene.add(greenLight);
 
-var $real_framerate = $("#real_framerate");
-var $framerate = $("#framerate");
-$framerate.bind("change keyup mouseup",function() {
-    var v = parseInt(this.value);
-    if (v > 0) {
-        //options.framerate = v;
-        renderInterval = 1000/parseInt(options.framerate);
-    }
-}).change();
-var $total_mass = $("#total_mass");
-var $maximum_mass = $("#maximum_mass");
-var $fps = $("#fps");
-var displayMass = false;
+
+var $po = $("#po");
+var $pb = $("#pb");
+var $eta = $("#eta");
+var $hl = $("#hl");
+
 reset();
 
 var pause = false;
@@ -413,10 +491,24 @@ function render(dt) {
 
     if(atoms && atoms.length){
         if (!pause) {
+            let po = 0;
+            let pb = 0;
             for(var i = 0; i < atoms.length; i++){
+
+                if(atoms[i].alphadecay)
+                {
+                    pb++;
+                }
+                else
+                {
+                    po++;
+                }
+
+
                 let p;
                 let elapsedTime = timeNow - timeBegin;
-                if(elapsedTime >= 100000)
+                $eta.html(elapsedTime);
+                if(elapsedTime >= 200000)
                 {
                     p = 100;
                 }
@@ -454,7 +546,13 @@ function render(dt) {
                     {
                         atoms[i].updateShockwave();
                         atoms[i].decayExplode();
-                        atoms[i].changeColor();
+                        if(!atoms[i].colorChange)
+                        {
+                            atoms[i].colorChange = true;
+                            atoms[i].changeColor();
+                            atoms[i].newText();
+                        }
+                        
                     }
                     else
                     {
@@ -470,7 +568,7 @@ function render(dt) {
                    
                 }
 
-                if(elapsedTime >= (1000 * parseInt(options.HALF_LIFE)))
+                if(elapsedTime >= (1000 * parseFloat(options.HALF_LIFE)))
                 {
                     //sudah halflife
                     if(!atoms[i].halflife)
@@ -500,7 +598,11 @@ function render(dt) {
                         sphere.mesh.position.copy(newPosition);
                     }
                 }
+                
             }
+            $hl.html(1000 * parseFloat(options.HALF_LIFE));
+            $po.html(po);
+            $pb.html(pb);
         }
     }
 
@@ -545,22 +647,6 @@ window.onmouseup = function(e) {
             vector.unproject(camera);
             var raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
             var intersects = raycaster.intersectObjects( scene.children );
-            if ( intersects.length > 0 ) {
-                var clickedObj = (intersects[0].object);
-                isMoverSelected = false;
-                for  (var i = 0; i<movers.length; i=i+1) {
-                    if (movers[i].mesh == clickedObj) {
-                        movers[i].selected = !movers[i].selected;
-                        isMoverSelected = movers[i].selected;
-                        console.log("SELECTED p#"+i);
-                    } else {
-                        movers[i].selected = false;
-                    }
-                }
-
-            }else {
-                isMoverSelected = false;
-            }
         }
     }
     onMouseDown = false;
@@ -620,16 +706,19 @@ function reset() {
         // console.log("hello");
         // console.log(atoms.length);
         for (var i = 0; i < atoms.length; i = i + 1) {
-          let spheres = atoms[i].spheres;
-          let decaySpheres = atoms[i].decaySphere;
-          //console.log(decaySpheres);
-          for (var j = 0; j < decaySpheres.length; j = j + 1) {
-            decaySpheres[j].delete(); // Corrected the loop variable and method invocation
-          }
-          for (var j = 0; j < spheres.length; j = j + 1) {
-            spheres[j].delete(); // Corrected the loop variable and method invocation
-          }
-          scene.remove(atoms[i].shockwaveSphere);
+            let spheres = atoms[i].spheres;
+            let decaySpheres = atoms[i].decaySphere;
+
+            //console.log(decaySpheres);
+            for (var j = 0; j < decaySpheres.length; j = j + 1) {
+                decaySpheres[j].delete(); // Corrected the loop variable and method invocation
+            }
+            for (var j = 0; j < spheres.length; j = j + 1) {
+                spheres[j].delete(); // Corrected the loop variable and method invocation
+            }
+            scene.remove(atoms[i].shockwaveSphere);
+            console.log(atoms[i].text);
+            scene.remove(atoms[i].text);
         }
       }
       
@@ -648,7 +737,9 @@ function reset() {
 
         atoms.push(new Atom(0xff0000, 0x0000ff, loc));
     }
+    if (localStorage) localStorage.setItem("options",JSON.stringify(options));
 }
+
 function random(min, max) {
     return Math.random() * (max - min) + min;
 }
