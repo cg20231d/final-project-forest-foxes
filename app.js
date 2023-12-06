@@ -143,7 +143,7 @@ class Sphere {
     }
 
     position(){   
-        console.log(this.mesh.position); 
+        //console.log(this.mesh.position); 
         return this.mesh.position;
     }
 
@@ -164,6 +164,10 @@ class Atom {
         this.spheres = [];
         this.decay = false;
         this.decaySphere = [];
+        this.halflife = false;
+        this.shake = true;
+        this.alphadecay = false;
+        this.done = false;
     
         this.shockwaveMaterial = new THREE.MeshPhongMaterial({
             color: 0xffff00, shininess: 40, 
@@ -183,15 +187,46 @@ class Atom {
         this.acceleration_y = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
         this.acceleration_z = (Math.random() * (100 - 50) + 50) * (this.getRandomInt(1, 10) % 2 == 0 ? 1 : -1);
 
-        console.log(this.acceleration_x);
-        console.log(this.acceleration_y);
-        console.log(this.acceleration_z);
-        
+
         scene.add(this.shockwaveSphere);
         this.createAtom();
         this.createDecayAtom();
     }
+
+    changeColor(){
+        for (let i = 0; i < this.spheres.length; i++) {
+            const sphere = this.spheres[i];
+            const originalColor = sphere.material.color.getHex();
+
+            // Check if the original color is red or blue
+            if (originalColor === 0xff0000) { // Red
+                // Change red to yellow (0xffff00)
+                sphere.material.color.setHex(0xffff00);
+            } else if (originalColor === 0x0000ff) { // Blue
+                // Change blue to green (0x00ff00)
+                sphere.material.color.setHex(0x00ff00);
+            }
+            this.dead = true;
+        }
+    }
     
+    changeHalfColor(){
+        for (let i = 0; i < this.spheres.length/2; i++) {
+            const sphere = this.spheres[i];
+            const originalColor = sphere.material.color.getHex();
+
+            // Check if the original color is red or blue
+            if (originalColor === 0xff0000) { // Red
+                // Change red to yellow (0xffff00)
+                sphere.material.color.setHex(0xffff00);
+            } else if (originalColor === 0x0000ff) { // Blue
+                // Change blue to green (0x00ff00)
+                sphere.material.color.setHex(0x00ff00);
+            }
+            this.dead = true;
+        }
+    }
+
     createSphere(x, y, z, color) {
         const sphere = new Sphere(this.scene, x, y, z, color);
         this.spheres.push(sphere);
@@ -206,14 +241,19 @@ class Atom {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    decayExplode(){        
+    decayExplode(){       
+        this.shake = false; 
         for(let i = 0; i < this.decaySphere.length; i++)
         {
+            if (Math.abs(this.decaySphere[i].position().x - this.location.x) > 6000) {
+                this.decay = true;
+                this.changeColor();
+                return;
+            }
             this.decaySphere[i].position().x += this.acceleration_x;
             this.decaySphere[i].position().y += this.acceleration_y;
             this.decaySphere[i].position().z += this.acceleration_z;
-        }
-        
+        }   
     }
     
     createAtom() {
@@ -419,34 +459,88 @@ function render(dt) {
     if(atoms && atoms.length){
         if (!pause) {
             for(var i = 0; i < atoms.length; i++){
+                let p;
+                let elapsedTime = timeNow - timeBegin;
+                if(elapsedTime >= 100000)
+                {
+                    p = 25;
+                }
+                else if(elapsedTime >= 5000)
+                {
+                    p = 20;
+                }
+                else if(elapsedTime >= 4000)
+                {
+                    p = 15;
+                }
+                else if(elapsedTime >= 3000)
+                {
+                    p = 10;
+                }
+                else if(elapsedTime >= 2000)
+                {
+                    p = 5;
+                }
+                else if(elapsedTime >= 1000)
+                {
+                    p = 1;
+                }
 
-                // logic shockwavenya disini
-                if(timeNow - timeBegin >= 5000)
+                let randomNumber = Math.floor(Math.random() * (1000)) + 1;
+                if(!atoms[i].done && (p >= randomNumber || atoms[i].alphadecay))
                 {
                     //console.log(timeNow - timeBegin);
-                    atoms[i].updateShockwave();
-                    atoms[i].decayExplode();
+                    atoms[i].alphadecay = true;
+                    if(!atoms[i].decay)
+                    {
+                        atoms[i].updateShockwave();
+                        atoms[i].decayExplode();
+                        atoms[i].changeColor();
+                    }
+                    else
+                    {
+                        if(atoms[i].decaySphere)
+                        {
+                            for(let j = 0; j < atoms[i].decaySphere.length; j++)
+                            {
+                                atoms[i].decaySphere[j].delete(); 
+                            }
+                            atoms[i].done = true;
+                        }
+                    }
+                   
                 }
-                
 
-                const shakeIntensity = 7; // Adjust the intensity of the shake as needed
-                for (let j = 0; j < atoms[i].spheres.length; j++) {
-                    //console.log("hello");
-                    //console.log(j);
-                    const sphere = atoms[i].spheres[j];
-                    const offsetX = (Math.random() - 0.5) * shakeIntensity;
-                    const offsetY = (Math.random() - 0.5) * shakeIntensity;
-                    const offsetZ = (Math.random() - 0.5) * shakeIntensity;
-            
-                    const newPosition = new THREE.Vector3(
-                        sphere.mesh.position.x + offsetX,
-                        sphere.mesh.position.y + offsetY,
-                        sphere.mesh.position.z + offsetZ
-                    );
-            
-                    sphere.mesh.position.copy(newPosition);
+                if(elapsedTime >= 5000)
+                {
+                    //sudah halflife
+                    if(!atoms[i].halflife)
+                    {
+                        atoms[i].halflife = true;
+                        atoms[i].changeHalfColor();
+                    }
                 }
                 
+                if(atoms[i].shake)
+                {
+                    const shakeIntensity = 7; // Adjust the intensity of the shake as needed
+                    for (let j = 0; j < atoms[i].spheres.length; j++) {
+                        //console.log("hello");
+                        //console.log(j);
+                        const sphere = atoms[i].spheres[j];
+                        const offsetX = (Math.random() - 0.5) * shakeIntensity;
+                        const offsetY = (Math.random() - 0.5) * shakeIntensity;
+                        const offsetZ = (Math.random() - 0.5) * shakeIntensity;
+                
+                        const newPosition = new THREE.Vector3(
+                            sphere.mesh.position.x + offsetX,
+                            sphere.mesh.position.y + offsetY,
+                            sphere.mesh.position.z + offsetZ
+                        );
+                
+                        sphere.mesh.position.copy(newPosition);
+                    }
+                }
             }
         }
     }
