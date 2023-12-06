@@ -10,9 +10,10 @@ so there goes the theory.</br>
 
 # Technology and implementation
 
-Using Three.JS we tried to make a 3D view of the phenomenon. while the users can change the value of the lifetime. 
+This project is a 3D replication from what is shown in [This phet simulation](https://phet.colorado.edu/en/simulations/alpha-decay). Using Three.JS we tried to make a 3D view of the phenomenon. While the users can change the value of the lifetime. And when the decay occurs, the atom will release a shockwave of energy, which is also being simulated. 
 
 # Difficulties and problem
 
-while we really tried to replicate what is shown in [This phet simulation](https://phet.colorado.edu/en/simulations/alpha-decay). we came across a few difficulties along the way, such as not enough memory (Alfadito problem) so he can't exactly see what Charles had done. so in trying to make it up. he, Alfadito, is the one writing this readme
+While doing this project, we came across a few difficulties along the way, such as not enough memory (Alfadito problem) so he can't exactly see what Charles had done. so in trying to make it up. he, Alfadito, is the one writing this readme.
+
 
